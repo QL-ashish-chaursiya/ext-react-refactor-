@@ -1,0 +1,1 @@
+export const NAVIGATE_TYPES = ["navigate","System_Navigate"]

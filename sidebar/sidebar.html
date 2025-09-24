@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Evertest Sidebar</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 16px;
+        background: white;
+        color: #333;
+        width: 150px;
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .logo {
+        width: 20px;  /* ⬅️ Reduced from 40px */
+        height: 20px;
+      }
+
+      .title {
+        font-size: 18px;
+        font-weight: bold;
+        color:  rgb(0 136 96);
+      }
+
+      .version {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 20px;
+      }
+
+      .link-btn {
+        display: inline-block;
+        padding: 8px 16px;
+        background:  rgb(0 170 96);
+        color: #fff;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: background 0.2s ease;
+      }
+
+      .link-btn:hover {
+        background: #006644;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <img src="../icons/icon48.png" alt="Evertest Logo" class="logo"   />
+      <span class="title">Evertest</span>
+    </div>
+
+    <div class="version" id="version">Version: --</div>
+
+    <a href="https://evertest.co/" target="_blank" class="link-btn">
+      Go to Evertest
+    </a>
+
+    <script src="sidebar.js"></script>
+  </body>
+</html>

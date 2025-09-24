@@ -1,0 +1,10 @@
+{
+    "extensionName": {
+      "message": "Selenium Sidebar Recorder",
+      "description": "Name of the extension"
+    },
+    "extensionDescription": {
+      "message": "Record user interactions and generate Selenium test scripts in a sidebar",
+      "description": "Description of the extension"
+    }
+  }
