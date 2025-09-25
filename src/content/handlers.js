@@ -63,14 +63,16 @@ function storeFileData(file, uniqueId) {
   });
 }
  
-export async function handleClick(e,state,hoverClickListener) {
+ // In your handlers.js file, update the handleClick function:
+
+  // In your handlers.js file, update the handleClick function:
+
+export async function handleClick(e, hoverClickListener, shadowContext = null) {
   
-  //if (!state.hoverModeActive) return;
-  console.log("state inside",state)
   if (e.target.closest('[data-recorder-ui="true"]')) return;
   e.preventDefault();
   e.stopPropagation();
-  //if (!state?.multipleHover) return;
+  
   const el = e.target;
   el.classList.add('__recorder-hover-highlight__');
   const info = getElementInfo(el);
@@ -80,17 +82,32 @@ export async function handleClick(e,state,hoverClickListener) {
     description: `Hover on ${info.tagName.toLowerCase()}${info.id ? `#${info.id}` : ''}`
   };
   sendAction(action, 'hover');
- // await addHoverElement(el);
-  if (!state?.multipleHover) {
-    const addHoverBtn = document.getElementById('addHoverBtn');
-  const hoverConfigUI = document.getElementById('hoverConfigUI');
-   await setState({ hoverModeActive: false });
-    hoverConfigUI.style.display = "none";
-    addHoverBtn.style.display = "block";
-    document.querySelectorAll('.__recorder-hover-highlight__').forEach((el) => {
-      el.classList.remove('__recorder-hover-highlight__');
-    });
-    document.removeEventListener("click", hoverClickListener, true);
+  let newState = await getState()
+  if (newState?.multipleHover) return;
+  if (!newState?.multipleHover) {
+    // Use shadowContext if provided, otherwise fall back to document
+    let addHoverBtn, hoverConfigUI;
+    
+    if (shadowContext && shadowContext.shadowRoot) {
+      // Get elements from shadow DOM
+      addHoverBtn = shadowContext.shadowRoot.getElementById('addHoverBtn');
+      hoverConfigUI = shadowContext.shadowRoot.getElementById('hoverConfigUI');
+    } else {
+      // Fallback to regular DOM (for backward compatibility)
+      addHoverBtn = document.getElementById('addHoverBtn');
+      hoverConfigUI = document.getElementById('hoverConfigUI');
+    }
+    
+    // Only proceed if elements are found
+    if (addHoverBtn && hoverConfigUI) {
+      await setState({ hoverModeActive: false });
+      hoverConfigUI.style.display = "none";
+      addHoverBtn.style.display = "block";
+      document.querySelectorAll('.__recorder-hover-highlight__').forEach((el) => {
+        el.classList.remove('__recorder-hover-highlight__');
+      });
+      document.removeEventListener("click", hoverClickListener, true);
+    }
   }
 }
 
