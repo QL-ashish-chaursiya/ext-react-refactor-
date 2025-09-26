@@ -1,5 +1,5 @@
  //playback.performer.js
-import { delay, locateElement, ensureClickable, waitForElementByXPath, normalizeUrl, sendMessageAsync, waitForNetworkIdlePolling, updateStatus } from './utils.js';
+import { delay, locateElement, ensureClickable, waitForElementByXPath, normalizeUrl, sendMessageAsync, waitForNetworkIdlePolling, updateStatus, getClickablePoint } from './utils.js';
 import { runAssertions } from './assertions.js';
 
 export async function runAutomation() {
@@ -262,16 +262,28 @@ async function performAction(action, arr, index) {
         await waitForNetworkIdlePolling();
         updateStatus('🚀 Running test playback...');
 
-        const result = await ensureClickable(action.element?.xpath, 10000);
-        if (result.success) {
+        const clickResult = await ensureClickable(action.element?.xpath, 10000);
+        if (clickResult.success) {
           const el = await waitForElementByXPath(action.element?.xpath, 1000);
-          const rect = el.getBoundingClientRect();
-          const clientX = Math.floor(rect.left + (action.offsetX || rect.width / 2));
-          const clientY = Math.floor(rect.top + (action.offsetY || rect.height / 2));
+const result = await getClickablePoint(el, action.offsetX, action.offsetY);
 
-          await sendMessageAsync({ command: "trustedClick", x: clientX, y: clientY });
-          actionSuccess = true;
-          resMessage = "✅ Successfully clicked";
+if (result.success) {
+  if (result.x !== null && result.y !== null) {
+    await sendMessageAsync({ command: "trustedClick", x: result.x, y: result.y });
+    console.log("✅ Clicked at", result.x, result.y, "-", result.reason);
+     
+  } else {
+    console.log("✅ Used direct el.click() -", result.reason);
+  }
+  actionSuccess = true;
+    resMessage = "✅ Successfully clicked";
+} else {
+  console.error("❌ Failed to click:", result.reason);
+  actionSuccess =  false;
+  resMessage =  result.reason || 'Failed to click';
+}
+
+         
         } else {
           actionSuccess = false;
           resMessage = result.message;

@@ -173,3 +173,59 @@ export function delay(ms) {
       statusOverlay.textContent = text;
     }
   }
+  export  async function getClickablePoint(el, offsetX, offsetY) {
+    if (!el) {
+      return { success: false, reason: "Element not found" };
+    }
+  
+    const rect = el.getBoundingClientRect();
+  
+    // Utility: check if a point is clickable
+    const isPointClickable = (x, y) => {
+      const elAt = document.elementFromPoint(x, y);
+      return elAt === el || el.contains(elAt);
+    };
+  
+    // 1. Recorded point
+    const recordedX = Math.floor(rect.left + (offsetX ?? rect.width / 2));
+    const recordedY = Math.floor(rect.top + (offsetY ?? rect.height / 2));
+    if (isPointClickable(recordedX, recordedY)) {
+      return { success: true, x: recordedX, y: recordedY, reason: "Recorded point clickable" };
+    }
+  console.log("given point is not clickable")
+    // 2. Center point
+    const centerX = Math.floor(rect.left + rect.width / 2);
+    const centerY = Math.floor(rect.top + rect.height / 2);
+    if (isPointClickable(centerX, centerY)) {
+      return { success: true, x: centerX, y: centerY, reason: "Center clickable" };
+    }
+    console.log("center point is not clickable")
+    // 3. Fallback points (corners + edges)
+    const candidates = [
+      { x: rect.left + 1, y: rect.top + 1, label: "Top-left" },
+      { x: rect.right - 1, y: rect.top + 1, label: "Top-right" },
+      { x: rect.left + 1, y: rect.bottom - 1, label: "Bottom-left" },
+      { x: rect.right - 1, y: rect.bottom - 1, label: "Bottom-right" },
+      { x: rect.left + rect.width / 2, y: rect.top + 1, label: "Top-center" },
+      { x: rect.left + rect.width / 2, y: rect.bottom - 1, label: "Bottom-center" },
+      { x: rect.left + 1, y: rect.top + rect.height / 2, label: "Left-center" },
+      { x: rect.right - 1, y: rect.top + rect.height / 2, label: "Right-center" },
+    ];
+  
+    for (const c of candidates) {
+      const cx = Math.floor(c.x);
+      const cy = Math.floor(c.y);
+      if (isPointClickable(cx, cy)) {
+        return { success: true, x: cx, y: cy, reason: `${c.label} clickable` };
+      }
+    }
+    console.log("other edge case point is not clickable")
+    // 4. Final fallback: try direct element.click()
+    try {
+      el.click();
+      return { success: true, x: null, y: null, reason: "Fallback: direct element.click() used" };
+    } catch (err) {
+      return { success: false, reason: `No clickable point found, and el.click() failed: ${err.message}` };
+    }
+  }
+  
