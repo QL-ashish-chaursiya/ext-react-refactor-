@@ -15,6 +15,7 @@ export const state = {
     activePort: null,
     currentPlayTab: null,
     lastDownloadStarted:false,
+    tabState: {},
     allowedHosts: [
       "localhost",
       "evertest.co",
@@ -38,6 +39,7 @@ export const state = {
     activePort: null,
     currentPlayTab: null,
     lastDownloadStarted:false,
+    tabState :{},
     allowedHosts: [
       "localhost",
       "evertest.co",

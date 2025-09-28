@@ -60,6 +60,10 @@ export async function runAutomation() {
 
     if (tabOrder != step.tabOrder) {
       console.log(tabOrder, step.tabOrder);
+      await delay(1500)
+      if(step.changeTab && step.type!='navigate'){
+        switchToTab(step.tabOrder)
+      }
       break;
     }
 
@@ -401,6 +405,22 @@ if (result.success) {
       assertions: []
     };
   }
+}
+export function switchToTab(tabOrder) {
+  chrome.runtime.sendMessage({
+    command: 'SWITCH_TAB',
+    tabOrder: tabOrder
+  });
+}
+export async function setupListner(){
+  chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+    if (message.action === "TAB_SWITCHED") {
+      console.log("Tab switched to order:", message.tabOrder);
+      // 🔁 restart your playback function here
+      await delay(2000)
+       runAutomation();
+    }
+  });
 }
 
  

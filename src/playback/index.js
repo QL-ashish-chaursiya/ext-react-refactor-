@@ -1,4 +1,4 @@
-import { runAutomation } from './performers.js';
+import { runAutomation ,setupListner} from './performers.js';
 import { waitForNetworkIdlePolling, delay, updateStatus } from './utils.js';
 
 (async function () {
@@ -13,7 +13,7 @@ import { waitForNetworkIdlePolling, delay, updateStatus } from './utils.js';
   }
 
   window.playbackInitialized = true;
-
+  setupListner()
   async function injectScript(file) {
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');

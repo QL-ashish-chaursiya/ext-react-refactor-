@@ -1,9 +1,9 @@
 //background.handler.js
  
 import { supabaseClient } from './supabase.js';
-import { captureAndUploadScreenshot } from './utils.js';
+import { captureAndUploadScreenshot, setActiveTab,attachDebuggerToTab } from './utils.js';
 import { stopRecording, recordAction } from './recording.js';
-import { getState, setState } from './states.js';
+import { getState, initialState, setState } from './states.js';
 // using getState().allowedHosts
 
 export function setupMessageListeners() {
@@ -12,11 +12,32 @@ export function setupMessageListeners() {
           try {
             switch (message.command) {
                case "change-recording-state":
-               
                setState({recording:message.recording})
-              
                 return sendResponse({ success: true });
-                 
+                case "SWITCH_TAB":
+                  try{
+                    const newTabOrder = message.tabOrder;
+                    const tabs = getState().tabState[getState().playbackWindowId] || [];
+              const target = tabs.find(t => t.tabOrder ===  newTabOrder);
+              
+              if(!target) return
+              const tabId = target.tabId;
+              getState().currentPlayTab = tabId
+              await attachDebuggerToTab(tabId);
+              chrome.tabs.update(tabId, { active: true }, async () => {
+                setActiveTab(getState().playbackWindowId, tabId);
+                console.log("message rec", newTabOrder)
+                await chrome.storage.local.set({tabOrder:newTabOrder})
+                chrome.tabs.sendMessage(tabId, {
+                  action: "TAB_SWITCHED",
+                  tabOrder: newTabOrder
+                });
+                
+              })
+                  }catch(e){
+                    console.log("switch tab err",e)
+                  }
+                  return  
                  case "CHECK_DOWNLOAD_STARTED":
                   sendResponse({ started: getState().lastDownloadStarted });
                   setState({ lastDownloadStarted:false})
@@ -159,7 +180,7 @@ export function setupMessageListeners() {
                 
                         await chrome.windows.remove(getState().playbackWindowId);
                     console.log('Test window closed automatically');
-                    setState({playbackWindowId:null,currentPlayTab:null,tabOrder: null})
+                    setState(initialState)
                 
                     return sendResponse({ status: 'processed', message: 'Test results received' });
                 
@@ -171,7 +192,7 @@ export function setupMessageListeners() {
       
               case 'recordAction':
                 
-                recordAction({ ...message.action, tabOrder: getState().tabOrder });
+                recordAction({ ...message.action });
                 return { status: 'recorded' }; 
                 
               default:

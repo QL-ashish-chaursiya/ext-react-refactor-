@@ -202,3 +202,36 @@ export  async function attachDebuggerToTab(tabId, retries = 5, delayMs = 1000) {
       console.warn("⚠️ Could not confirm document readiness:", err);
     }
   }
+  export function reorderTabs(windowId) {
+    if (!getState()?.tabState[windowId]) return;
+  
+    getState().tabState[windowId].forEach((tab, index) => {
+      tab.tabOrder = index + 1;
+    });
+  }
+  export function setActiveTab(windowId, activeTabId) {
+    if (!getState()?.tabState[windowId]) return;
+  
+    getState().tabState[windowId] =  getState().tabState[windowId].map(t => ({
+      ...t,
+      isCurrentTab: t.tabId === activeTabId
+    }));
+    
+  }
+  export function setTabOrder(tab,windowId){
+     
+    if (!getState().tabState[windowId]) getState().tabState[windowId] = [];
+  
+    getState().tabState[windowId].push({
+      tabId:tab.id,
+      tabOrder: getState().tabState[windowId].length + 1,
+      isCurrentTab: false
+    });
+  }
+  export function getCurrentActiveTabOrder(windowId,tabId) {
+    if (!getState().tabState[windowId]) return null;
+  
+    const active = getState().tabState[windowId].find(t => t.isCurrentTab);
+    const secondTab = getState().tabState[windowId].find(t => t.tabId==tabId)?.tabOrder || 1
+    return active ? active.tabOrder : secondTab;
+  }

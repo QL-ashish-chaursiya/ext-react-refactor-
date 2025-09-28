@@ -148,6 +148,7 @@ chrome.tabs.onCreated.addListener(async (tab) => {
       getState().recordingTabIds.add(tab.id);
       setState({    tabOrder: getState().recordingTabIds.size });
       console.log("tabOrder", getState().recordingTabIds.size)
+      utils.setTabOrder(tab,getState().recordingWindowId)
       await utils.waitForPageReady(tab.id);
       await utils.injectContentScriptSafely(tab.id, 'content.bundle.js');
     }
@@ -157,7 +158,7 @@ chrome.tabs.onCreated.addListener(async (tab) => {
      
      
       setState({tabOrder:windowTabs.length})
-     
+      utils.setTabOrder(tab,getState().playbackWindowId)
       setState({ currentPlayTab:tab.id})
       await utils.waitForPageReady(tab.id);
       try {
@@ -168,7 +169,7 @@ chrome.tabs.onCreated.addListener(async (tab) => {
       } catch (err) {
         console.warn('⚠️ Script injection failed after navigation:', err);
       }
-      await chrome.storage.local.set({ tabOrder: windowTabs.length, actions: getState().playbackArr });
+      await chrome.storage.local.set({ tabOrder: utils.getCurrentActiveTabOrder(getState().playbackWindowId,tab.id), actions: getState().playbackArr });
     }
   } catch (error) {
     console.error('Tab creation handler error:', error);
@@ -200,4 +201,33 @@ chrome.windows.onRemoved.addListener(async (windowId) => {
   await chrome.storage.local.clear();
   setState(initialState);
  
+});
+
+chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+  const { windowId } = removeInfo;
+  if (getState().recording) {
+   
+
+    if (getState().tabState[windowId]) {
+      getState().tabState[windowId] = getState().tabState[windowId].filter(t => t.tabId !== tabId);
+  
+      // Reorder tabOrder sequentially
+      utils.reorderTabs(windowId);
+    }
+  
+     
+  }
+ 
+});
+chrome.tabs.onActivated.addListener(activeInfo => {
+  const { tabId, windowId } = activeInfo;
+   
+  if (getState().recording) {
+    if (getState().tabState[windowId]) {
+      utils.setActiveTab(windowId, tabId);
+    }
+  
+    
+  }
+   
 });

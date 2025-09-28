@@ -2,6 +2,7 @@
 import { supabaseClient } from './supabase.js';
 import { getState, setState, state } from './states.js';
 import { NAVIGATE_TYPES } from '../utils/constant.js';
+import { getCurrentActiveTabOrder } from './utils.js';
 
 export async function stopRecording() {
   
@@ -53,7 +54,8 @@ const prevType =  getState().recordedActions[actionLength - 1].type
    
   
   action.sequence = getState().recordedActions.length + 1;
-  
+  action.tabOrder = getCurrentActiveTabOrder(getState().recordingWindowId)
+  action.changeTab = getState().recordedActions?.length && getState().recordedActions[getState().recordedActions.length - 1].tabOrder==getCurrentActiveTabOrder(getState().recordingWindowId) ? false :true
   getState().recordedActions.push(action)
    
    
