@@ -271,17 +271,28 @@ export function setupMessageListeners() {
               
               console.log("Playback started - Initial tabOrder:", getState().tabOrder);
               return sendResponse({ success: true });
-            } else if(message.type==='check-incognito-mode'){
-              let res = await chrome.extension.isAllowedIncognitoAccess()
-               
-                sendResponse({ success: res });
-                setTimeout(() => {
-                  chrome.tabs.create({
-                    url: "chrome://extensions/?id=gdlneolfhnjeddfbchnfnlmmnnnofemc",
-                  });
-                }, 1000);
-              return
+            } else if (message.type === 'check-incognito-mode') {
+              (async () => {
+                try {
+                  let res = await chrome.extension.isAllowedIncognitoAccess();
+                  sendResponse({ success: res });
+                 if(!res){
+                  setTimeout(() => {
+                    chrome.tabs.create({
+                      url: "chrome://extensions/?id=gdlneolfhnjeddfbchnfnlmmnnnofemc",
+                    });
+                  }, 1000);
+                 }
+                  
+                } catch (err) {
+                  sendResponse({ success: false, error: err.message });
+                }
+              })();
+            
+              // ✅ Return true to indicate async sendResponse
+              return true;
             }
+            
           } catch (error) {
             console.error('External message handler error:', error);
             sendResponse({ success: false, error: error.message });
