@@ -228,4 +228,87 @@ export function delay(ms) {
       return { success: false, reason: `No clickable point found, and el.click() failed: ${err.message}` };
     }
   }
+  // Helper function to check if element is covered
+export function isElementCovered(element) {
+  try {
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    // Get the topmost element at the center point
+    const topElement = document.elementFromPoint(centerX, centerY);
+    
+    if (!topElement) return { covered: true, reason: 'No element found at point' };
+    
+    // Check if the top element is the target or a descendant
+    if (topElement === element || element.contains(topElement)) {
+      return { covered: false, reason: 'Element is clickable' };
+    }
+    
+    // Check if covering element is an overlay/loader/popup
+    const coveringElement = topElement;
+    const computedStyle = window.getComputedStyle(coveringElement);
+    const tagName = coveringElement.tagName.toLowerCase();
+    const className = coveringElement.className || '';
+    const id = coveringElement.id || '';
+    
+    // Common patterns for overlays/loaders/popups
+    const overlayPatterns = [
+      /overlay/i, /modal/i, /popup/i, /loader/i, 
+      /spinner/i, /loading/i, /backdrop/i, /dialog/i,
+      /toast/i, /notification/i, /cover/i
+    ];
+    
+    const isOverlay = overlayPatterns.some(pattern => 
+      pattern.test(className) || pattern.test(id) || pattern.test(tagName)
+    );
+    
+    // Check if element has high z-index (common for overlays)
+    const zIndex = parseInt(computedStyle.zIndex) || 0;
+    const hasHighZIndex = zIndex > 100;
+    
+    // Check if element has overlay-like styling
+    const hasOverlayStyle = 
+      computedStyle.position === 'fixed' || 
+      computedStyle.position === 'absolute';
+    
+    if (isOverlay || (hasHighZIndex && hasOverlayStyle)) {
+      return { 
+        covered: true, 
+        reason: `Element covered by other Element like  Loader/Overlay/Modal`,
+        coveringElement 
+      };
+    }
+    
+    return { 
+      covered: true, 
+      reason: `Element covered by other Element like  Loader/Overlay/Modal`,
+      coveringElement 
+    };
+    
+  } catch (error) {
+    return { covered: false, reason: 'Error checking coverage: ' + error.message };
+  }
+}
+
+// Helper to wait for element to be uncovered
+export async function waitForElementUncovered(element, timeout = 10000) {
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < timeout) {
+    const coverCheck = isElementCovered(element);
+    
+    if (!coverCheck.covered) {
+      return { success: true, message: 'Element is now clickable' };
+    }
+    
+    console.log(`⏳ Waiting for overlay to clear: ${coverCheck.reason}`);
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+  
+  return { 
+    success: false, 
+    message: 'Timeout: Element still covered after waiting' 
+  };
+}
   

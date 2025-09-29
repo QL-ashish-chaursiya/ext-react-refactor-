@@ -1,5 +1,5 @@
  //playback.performer.js
-import { delay, locateElement, ensureClickable, waitForElementByXPath, normalizeUrl, sendMessageAsync, waitForNetworkIdlePolling, updateStatus, getClickablePoint } from './utils.js';
+import { delay, locateElement, ensureClickable, waitForElementByXPath, normalizeUrl, sendMessageAsync, waitForNetworkIdlePolling, updateStatus, getClickablePoint, isElementCovered, waitForElementUncovered } from './utils.js';
 import { runAssertions } from './assertions.js';
 
 export async function runAutomation() {
@@ -269,6 +269,19 @@ async function performAction(action, arr, index) {
         const clickResult = await ensureClickable(action.element?.xpath, 10000);
         if (clickResult.success) {
           const el = await waitForElementByXPath(action.element?.xpath, 1000);
+          const coverCheck = isElementCovered(el);
+    
+          if (coverCheck.covered) {
+            console.log(`⚠️ Element covered: ${coverCheck.reason}`);
+            updateStatus('⏳ Waiting for overlay to clear...');
+            
+            const uncoverResult = await waitForElementUncovered(el, 10000);
+            
+            if (!uncoverResult.success) {
+              actionSuccess = false;
+              resMessage = `${coverCheck.reason}`;
+              break;
+            }}
 const result = await getClickablePoint(el, action.offsetX, action.offsetY);
 
 if (result.success) {
