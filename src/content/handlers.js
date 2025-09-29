@@ -6,6 +6,11 @@ let tempValue = null;
 let searchableDropdownTimeout = null;
 let scrollDebounceTimer = null;
 let lastRecordedScrollY = 0;
+let lastDOMSnapshot = null;
+let scrollTimeout = null;
+let isScrolling = false;
+let scrollStartSnapshot = null;
+let scrollStartY = 0;
 
 export function attachAllListeners() {
   document.addEventListener("mouseover", handleHoverIn, true);
@@ -13,8 +18,7 @@ export function attachAllListeners() {
   document.addEventListener("input", handleInput, { capture: true, passive: true });
   document.addEventListener("change", handleChange, { capture: true, passive: true });
    document.addEventListener("mousedown", handleMouseDown, { capture: true, passive: true });
-  //document.addEventListener("click", handleClick,  true);
- // document.addEventListener("scroll", debouncedScroll, true);
+   document.addEventListener("scroll", handleScroll, { passive: true, capture: true });
 }
 
 export function removeAllListeners() {
@@ -23,8 +27,11 @@ export function removeAllListeners() {
    document.removeEventListener("mousedown", handleMouseDown, true);
   document.removeEventListener("mouseover", handleHoverIn, true);
   document.removeEventListener("mouseout", handleHoverOut, true);
-  //document.removeEventListener("click", handleClick, true);
-  //document.removeEventListener("scroll", debouncedScroll, true);
+  document.removeEventListener("scroll", handleScroll, true); // ✅ Changed
+  
+  // Clear any pending scroll checks
+  clearTimeout(scrollTimeout);
+  isScrolling = false;
 }
 
 export function sendAction(action, type, callback) {
@@ -264,41 +271,120 @@ async function handleInput(event) {
     tempValue = null;
   }, 500);
 }
+function getDOMSnapshot() {
+  return {
+    elementCount: document.body.getElementsByTagName('*').length,
+    bodyHeight: document.body.scrollHeight,
+    imageCount: document.querySelectorAll('img').length,
+    videoCount: document.querySelectorAll('video').length,
+    timestamp: Date.now()
+  };
+}
 
+function hasNewContentLoaded(oldSnapshot, newSnapshot) {
+  if (!oldSnapshot) return false;
+  
+  const elementDiff = newSnapshot.elementCount - oldSnapshot.elementCount;
+  const heightDiff = newSnapshot.bodyHeight - oldSnapshot.bodyHeight;
+  const imageDiff = newSnapshot.imageCount - oldSnapshot.imageCount;
+  const videoDiff = newSnapshot.videoCount - oldSnapshot.videoCount;
+  
+  const hasNewContent = elementDiff > 5 || heightDiff > 200 || imageDiff > 0 || videoDiff > 0;
+  
+  return hasNewContent;
+}
 async function handleScroll(event) {
   const state = await getState();
   if (!state.recording || !isRuntimeAvailable() || state.hoverModeActive) return;
 
   const target = event.target;
-  let scrollX, scrollY, description;
 
+  // Handle window/document scroll
   if (target === document || target === document.documentElement || target === window) {
-    scrollX = window.scrollX;
-    scrollY = window.scrollY;
-    description = `Scroll page to (${scrollX}, ${scrollY})`;
-
-    const isScrollingDown = scrollY > lastRecordedScrollY;
-    if (isScrollingDown && scrollY > 300 && Math.abs(scrollY - lastRecordedScrollY) >= 150) {
-      sendAction({ type: "scroll", scrollX, scrollY, description }, "scroll");
-      lastRecordedScrollY = scrollY;
+    const currentY = window.scrollY;
+    
+    // Start of scrolling - take initial snapshot
+    if (!isScrolling) {
+      isScrolling = true;
+      scrollStartY = currentY;
+      scrollStartSnapshot = getDOMSnapshot();
     }
-  } else if (target instanceof Element) {
-    scrollX = target.scrollLeft;
-    scrollY = target.scrollTop;
-    description = `Scroll container <${target.tagName.toLowerCase()}${target.id ? "#" + target.id : ""}> to (${scrollX}, ${scrollY})`;
-
-    if (Math.abs(scrollY - (target._lastRecordedScrollY || 0)) >= 100) {
-      sendAction({ type: "scroll", scrollX, scrollY, description, containerXPath: generateXPaths(target) }, "scroll");
-      target._lastRecordedScrollY = scrollY;
+    
+    // Clear existing timeout
+    clearTimeout(scrollTimeout);
+    
+    // Wait 2 seconds after user stops scrolling
+    scrollTimeout = setTimeout(() => {
+      const scrollDiff = Math.abs(currentY - lastRecordedScrollY);
+      
+      // Only process if scrolled significantly
+      if (scrollDiff >= 150) {
+        const currentSnapshot = getDOMSnapshot();
+        const contentAdded = hasNewContentLoaded(scrollStartSnapshot, currentSnapshot);
+        
+        if (contentAdded) {
+          const action = {
+            type: "scroll",
+            scrollX: window.scrollX,
+            scrollY: currentY,
+            description: `Scroll page to (${window.scrollX}, ${currentY})`,
+          };
+          sendAction(action, "scroll");
+          lastRecordedScrollY = currentY;
+        }
+      }
+      
+      isScrolling = false;
+    }, 1000);
+  } 
+  // Handle scrollable containers
+  else if (target instanceof Element) {
+    const scrollY = target.scrollTop;
+    
+    // Initialize container tracking
+    if (typeof target._lastRecordedScrollY === 'undefined') {
+      target._lastRecordedScrollY = 0;
     }
+    
+    // Start of container scroll
+    if (!target._isScrolling) {
+      target._isScrolling = true;
+      target._scrollStartY = scrollY;
+      target._scrollStartSnapshot = {
+        childCount: target.children.length,
+        scrollHeight: target.scrollHeight
+      };
+    }
+    
+    clearTimeout(target._scrollTimeout);
+    
+    target._scrollTimeout = setTimeout(() => {
+      const scrollDiff = Math.abs(scrollY - target._lastRecordedScrollY);
+      
+      if (scrollDiff >= 100) {
+        const currentSnapshot = {
+          childCount: target.children.length,
+          scrollHeight: target.scrollHeight
+        };
+        
+        const childDiff = currentSnapshot.childCount - target._scrollStartSnapshot.childCount;
+        const heightDiff = currentSnapshot.scrollHeight - target._scrollStartSnapshot.scrollHeight;
+        const contentAdded = childDiff > 3 || heightDiff > 100;
+        
+        if (contentAdded) {
+          const action = {
+            type: "scroll",
+            scrollX: target.scrollLeft,
+            scrollY: scrollY,
+            description: `Scroll container <${target.tagName.toLowerCase()}${target.id ? "#" + target.id : ""}> to (${target.scrollLeft}, ${scrollY})`,
+            containerXPath: generateXPaths(target)
+          };
+          sendAction(action, "scroll");
+          target._lastRecordedScrollY = scrollY;
+        }
+      }
+      
+      target._isScrolling = false;
+    }, 1000);
   }
-}
-
-export const debouncedScroll = debounce(handleScroll, 300);
-
-function debounce(func, wait) {
-  return function (...args) {
-    clearTimeout(scrollDebounceTimer);
-    scrollDebounceTimer = setTimeout(() => func.apply(this, args), wait);
-  };
 }
