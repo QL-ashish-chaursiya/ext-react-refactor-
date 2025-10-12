@@ -4,6 +4,7 @@ import { supabaseClient } from './supabase.js';
 import { captureAndUploadScreenshot, setActiveTab,attachDebuggerToTab, attachContentScriptToIframe } from './utils.js';
 import { stopRecording, recordAction } from './recording.js';
 import { getState, initialState, setState } from './states.js';
+import { codeMap, keyCodeMap, nonTextKeys } from '../utils/constant.js';
 // using getState().allowedHosts
 
 export function setupMessageListeners() {
@@ -80,7 +81,45 @@ export function setupMessageListeners() {
                   
                   return true;
                 }
-                
+                   case 'trustedKeyEvent': {
+  const tabIdKey = sender.tab.id || getState().attachedTabId;
+  const { key } = message;
+  if (getState().isDebuggerAttached && getState().attachedTabId === tabIdKey) {
+    try {
+       
+      const isNonText = nonTextKeys.includes(key);
+      const commonFields = {
+        key,
+        code: codeMap[key] || key,
+        windowsVirtualKeyCode: keyCodeMap[key] || 0,
+      };
+
+      // Press down
+      await chrome.debugger.sendCommand({ tabId: tabIdKey }, "Input.dispatchKeyEvent", {
+        type: "keyDown",
+        ...commonFields,
+        ...(isNonText ? {} : { text: key === "Enter" ? "\r" : key }),
+      });
+
+      // Release
+      await chrome.debugger.sendCommand({ tabId: tabIdKey }, "Input.dispatchKeyEvent", {
+        type: "keyUp",
+        ...commonFields,
+      });
+
+      sendResponse({ ok: true, method: 'debugger' });
+    } catch (err) {
+      console.error(`Trusted ${key} key failed:`, err);
+      sendResponse({ ok: false, error: err.message });
+    }
+  } else {
+    console.warn("Debugger not attached or wrong tab for key event");
+    sendResponse({ ok: false, error: "Debugger not attached" });
+  }
+
+  return true;
+}
+
                 case 'trustedHover':
                   const tabIdHover = sender.tab.id || getState().attachedTabId;
                   if (getState().isDebuggerAttached && getState().attachedTabId === tabIdHover) {
