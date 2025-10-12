@@ -1,9 +1,10 @@
  //playback.performer.js
-import { delay, locateElement, ensureClickable, waitForElementByXPath, normalizeUrl, sendMessageAsync, waitForNetworkIdlePolling, updateStatus, getClickablePoint, isElementCovered, waitForElementUncovered } from './utils.js';
+import { delay, locateElement, ensureClickable, waitForElementByXPath, normalizeUrl, sendMessageAsync, waitForNetworkIdlePolling, updateStatus, getClickablePoint, isElementCovered, waitForElementUncovered, waitForIframe } from './utils.js';
 import { runAssertions } from './assertions.js';
 
 export async function runAutomation() {
   let preSavedActions = new Set();
+    const attachedframes = new Set()
   let { actions, currentStep = 0, allResults = [], tabOrder = 1 } = await chrome.storage.local.get(['actions', 'currentStep', 'allResults', 'tabOrder']);
   const steps = actions || [];
   
@@ -90,7 +91,58 @@ export async function runAutomation() {
         console.log(`✅ Mousedown action pre-saved to storage`);
       }
 
-      const res = await performAction(step, steps, i);
+      let res ;
+           if (step.isTopFrame == false) {
+            await delay(3000)
+               updateStatus('🚀 Running test playback...');
+            const refSrc = step.iframeIdentifier?.src
+            console.log("refSrc",refSrc)
+            const  targetIframe = await waitForIframe(refSrc, 5000, 1000);
+        
+     
+      
+console.log("targetIframe",targetIframe)
+  if (!targetIframe) {
+   
+    res =  { success: false, message: "Iframe not found", assertions: [] };
+  }
+  if(targetIframe && !attachedframes.has(targetIframe.src)){
+const response = await chrome.runtime.sendMessage({
+     command: "ATTACH_IFRAME_SCRIPT",
+    frameSrc: targetIframe.src,
+  });
+  attachedframes.add(targetIframe.src)
+  console.log("resposne",response)
+  }
+   
+ if(targetIframe){
+ res = await new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      console.warn("[Main] ⏱️ Timeout waiting for iframe response");
+      resolve({ success: false, message: "Iframe response timeout", assertions: [] });
+    }, 30000); // 15s timeout
+
+    const handler = (event) => {
+      if (event.source === targetIframe.contentWindow && event.data?.type === "PLAYBACK_IFRAME_RESPONSE") {
+        window.removeEventListener("message", handler);
+        clearTimeout(timeout);
+        resolve(event.data.result);
+      }
+    };
+    window.addEventListener("message", handler);
+
+    // Send the action to the iframe
+     
+    targetIframe.contentWindow.postMessage({ type: "PLAYBACK_IFRAME_ACTION", action:step }, "*");
+    console.log("send iframe action")
+  });
+ }
+   
+
+  
+}else{
+ res = await performAction(step, steps, i);
+}
       if (!preSavedActions.has(i)) {
         results.push({
           ...result,

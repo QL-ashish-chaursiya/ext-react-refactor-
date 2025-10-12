@@ -33,14 +33,78 @@ export function removeAllListeners() {
   clearTimeout(scrollTimeout);
   isScrolling = false;
 }
+export  function getIframeElementForClickedNode(clickedElement) {
+  try {
+    const ownerDoc = clickedElement.ownerDocument;
+    const frameWindow = ownerDoc.defaultView;
 
-export function sendAction(action, type, callback) {
-  
+    // If the element is in the main window
+    if (frameWindow === window.top) return null;
+
+    let parentDoc = null;
+    try {
+      parentDoc = frameWindow.parent.document; // ❗ may throw cross-origin error
+    } catch (err) {
+      // Cross-origin frame
+      console.log("frameWindow",frameWindow)
+      return {
+        crossOrigin: true,
+        src: frameWindow.location?.href || null,
+        id: null,
+        title: null
+      };
+    }
+
+    // Try to locate this iframe in the parent
+    const iframes = Array.from(parentDoc.querySelectorAll("iframe"));
+    console.log("all frame",iframes)
+    for (const iframe of iframes) {
+      try {
+        if (iframe.contentWindow === frameWindow) {
+          const src = iframe.getAttribute("src") || "";
+          const isBlank = !src || src === "about:blank";
+
+          // Handle about:blank smartly
+          if (isBlank) {
+            const doc = iframe.contentDocument;
+            const hasContent = doc && doc.body && doc.body.children.length > 0;
+            if (!hasContent) {
+              console.log("🕳 Ignoring truly blank iframe");
+              continue;
+            }
+          }
+ 
+          return {
+            crossOrigin: false,
+            id: iframe.id || null,
+            title: iframe.title || null,
+            src: src || iframe.baseURI || "about:blank"
+          };
+        }
+      } catch (innerErr) {
+        // contentWindow access failed (cross-origin)
+        console.warn("⚠️ Unable to fully inspect iframe:", innerErr);
+      }
+    }
+
+    return null;
+  } catch (err) {
+    console.warn("⚠️ Unable to find iframe for clicked node:", err);
+    return null;
+  }
+}
+
+
+export function sendAction(action, el) {
+    const isInIframe = window.self !== window.top;
+    console.log("iframe",window.self !== window.top)
+  const iframeIdentifier = isInIframe ?    getIframeElementForClickedNode(el) : null;
+    const updatedAction = {...action,isTopFrame:!isInIframe,iframeIdentifier}
   if (!isRuntimeAvailable()) return;
   console.log("action 1",action)
   chrome.runtime
-    .sendMessage({ command: "recordAction", action })
-    .then(() => callback && callback())
+    .sendMessage({ command: "recordAction", action:updatedAction })
+    .then(() =>  {})
     .catch(() => {});
 }
 
@@ -137,7 +201,7 @@ function hasMoreThanOneNonAlphabet(str) {
   return nonAlphaMatches && nonAlphaMatches.length > 1;
 }
 
-async function handleMouseDown(event) {
+export async function handleMouseDown(event) {
   const state = await getState();
    
   if (!state.recording || !isRuntimeAvailable() || state.hoverModeActive) return;
@@ -165,10 +229,10 @@ async function handleMouseDown(event) {
 
   setTimeout(() => {
     if (tempValue?.value) {
-      sendAction(tempValue, "change");
+      sendAction(tempValue, target);
       tempValue = null;
     }
-    sendAction(action, "mousedown");
+    sendAction(action, target);
   }, 0);
 }
 
@@ -180,7 +244,7 @@ function isPartOfOtpGroup(input) {
   return inputs.every((inp) => inp.maxLength === 1 || inp.getAttribute("maxlength") === "1");
 }
 
-async function handleChange(event) {
+export async function handleChange(event) {
   const state = await getState();
   if (!state.recording || !isRuntimeAvailable() || state.hoverModeActive) return;
   if (event.target.closest('[data-recorder-ui="true"]')) return;
@@ -208,7 +272,7 @@ async function handleChange(event) {
     storeFileData(file, uniqueId)
       .then((data) => {
         newAction.storageData = data;
-        sendAction(newAction, 'fileSelect');
+        sendAction(newAction,  target);
       })
       .catch(() => {});
     return;
@@ -221,10 +285,10 @@ async function handleChange(event) {
     description: `Enter "${target.value}" `,
   };
   tempValue = null;
-  sendAction(action, "change");
+  sendAction(action, target);
 }
 
-async function handleInput(event) {
+export async function handleInput(event) {
   const state = await getState();
   if (!state.recording || !isRuntimeAvailable() || state.hoverModeActive) return;
   if (event.target.closest('[data-recorder-ui="true"]')) return;
@@ -243,7 +307,7 @@ async function handleInput(event) {
         value,
         description: `Enter "${value}" `,
       };
-      sendAction(action, "change");
+      sendAction(action,  target);
     }, 500);
     return;
   }
@@ -267,7 +331,7 @@ async function handleInput(event) {
       value: target.value,
       description: `Enter "${target.value}" `,
     };
-    sendAction(action, "change");
+    sendAction(action, target);
     tempValue = null;
   }, 500);
 }

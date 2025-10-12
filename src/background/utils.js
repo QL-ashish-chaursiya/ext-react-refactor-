@@ -18,11 +18,21 @@ export  function isInjectableUrl(url) {
         console.warn('Cannot inject into chrome:// or extension URLs');
         return false;
       }
-  
+      
       await chrome.scripting.executeScript({
         target: { tabId },
         files: [fileName]
       });
+       
+       if(fileName=='content.bundle.js'){
+      setTimeout( () => {
+     chrome.scripting.executeScript({
+        target: { tabId , allFrames:true},
+        files: ["iframeContent.bundle.js"]
+      });
+      },2000)
+      }
+       
       
       // Wait a bit for script to initialize
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -235,3 +245,47 @@ export  async function attachDebuggerToTab(tabId, retries = 5, delayMs = 1000) {
     const secondTab = getState().tabState[windowId].find(t => t.tabId==tabId)?.tabOrder || 1
     return active ? active.tabOrder : secondTab;
   }
+  export async function attachContentScriptToIframe(tabId, frameSrc) {
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  const frames = await chrome.webNavigation.getAllFrames({ tabId });
+  console.log("🔍 all frames:", frames);
+
+   const targetFrame = frames.find(f => {
+  try {
+    if (!f.url) return false;
+    const recorded = new URL(frameSrc);
+    const current = new URL(f.url);
+
+    const normalizePath = (path) =>
+      path
+        .split('/')
+        .filter(Boolean)
+        .filter(segment => !/^\d+$/.test(segment) && !/^[a-f0-9]{8,}$/i.test(segment))
+        .join('/');
+
+    const recordedPath = normalizePath(recorded.pathname);
+    const currentPath = normalizePath(current.pathname);
+
+    return current.origin === recorded.origin && currentPath === recordedPath;
+  } catch {
+    return false;
+  }
+});
+  console.log("🎯 targetFrame:", targetFrame);
+
+  if (!targetFrame) throw new Error("Iframe not found or not loaded");
+
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId, frameIds: [targetFrame.frameId] },
+      files: ["iframe.bundle.js"],
+    });
+
+    console.log("[BG] ✅ Injected content script into frame:", targetFrame.url);
+    return "attached";
+  } catch (err) {
+    console.error("[BG] ❌ Script injection failed:", err);
+    throw err;
+  }
+}

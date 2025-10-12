@@ -51,4 +51,6 @@ export default [
   makeConfig('background', 'src/background/index.js'),
   makeConfig('content', 'src/content/index.js'),
   makeConfig('playback', 'src/playback/index.js'),
+  makeConfig('iframe', 'src/iframe/index.js'),
+  makeConfig('iframeContent', 'src/iframe/listner.js'),
 ];

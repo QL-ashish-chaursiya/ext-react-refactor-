@@ -1,3 +1,4 @@
+import { injectScript } from '../utils/helper.js';
 import { runAutomation ,setupListner} from './performers.js';
 import { waitForNetworkIdlePolling, delay, updateStatus } from './utils.js';
 
@@ -14,18 +15,7 @@ import { waitForNetworkIdlePolling, delay, updateStatus } from './utils.js';
 
   window.playbackInitialized = true;
   setupListner()
-  async function injectScript(file) {
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = chrome.runtime.getURL(file);
-      script.onload = () => {
-        script.remove();
-        resolve();
-      };
-      script.onerror = (err) => reject(err);
-      (document.head || document.documentElement).appendChild(script);
-    });
-  }
+  
 
   await injectScript('network.js');
   await injectScript('alert-override.js');

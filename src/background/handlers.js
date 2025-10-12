@@ -1,7 +1,7 @@
 //background.handler.js
  
 import { supabaseClient } from './supabase.js';
-import { captureAndUploadScreenshot, setActiveTab,attachDebuggerToTab } from './utils.js';
+import { captureAndUploadScreenshot, setActiveTab,attachDebuggerToTab, attachContentScriptToIframe } from './utils.js';
 import { stopRecording, recordAction } from './recording.js';
 import { getState, initialState, setState } from './states.js';
 // using getState().allowedHosts
@@ -14,6 +14,22 @@ export function setupMessageListeners() {
                case "change-recording-state":
                setState({recording:message.recording})
                 return sendResponse({ success: true });
+                case "ATTACH_IFRAME_SCRIPT":
+                      const { frameSrc } = message;
+    const tabId = sender.tab.id;
+
+    
+      try {
+        const result = await attachContentScriptToIframe(tabId, frameSrc);
+        
+        sendResponse({ success: true, result });
+      } catch (err) {
+        sendResponse({ success: false, error: err.message || String(err) });
+      }
+        break
+
+    
+                 
                 case "SWITCH_TAB":
                   try{
                     const newTabOrder = message.tabOrder;
@@ -178,7 +194,7 @@ export function setupMessageListeners() {
                       }
                     }
                 
-                        await chrome.windows.remove(getState().playbackWindowId);
+                      await chrome.windows.remove(getState().playbackWindowId);
                     console.log('Test window closed automatically');
                     setState(initialState)
                 
