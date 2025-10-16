@@ -138,7 +138,9 @@ export function getElementInfo(element) {
       }
     }
      if (el.attributes) {
-      const dataAttrs = Array.from(el.attributes).filter((a) => ALLOWED_ATTRIBUTES.includes(a.name) );
+const dataAttrs = Array.from(el.attributes)
+  .filter((a) => ALLOWED_ATTRIBUTES.includes(a.name))
+  .sort((a, b) => ALLOWED_ATTRIBUTES.indexOf(a.name) - ALLOWED_ATTRIBUTES.indexOf(b.name));
       for (const { name, value } of dataAttrs) {
         const sel = createXPathByAttribute({ el, attrName: name, attrValue: value });
         const indexed = convertToIndexedXpathIfNeeded(el, sel);
