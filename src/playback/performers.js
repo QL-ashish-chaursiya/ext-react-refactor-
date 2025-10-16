@@ -12,6 +12,7 @@ import {
   isElementCovered,
   waitForElementUncovered,
   waitForIframe,
+  resolveVariableValue,
 } from "./utils.js";
 import { runAssertions } from "./assertions.js";
 
@@ -499,32 +500,33 @@ async function performAction(action, arr, index) {
       }
       case "change": {
         element.focus();
+         const finalValue = action?.variable?.name ? resolveVariableValue(action?.variable):action.value
         if (element.isContentEditable) {
           element.innerHTML = "";
           await delay(100);
-          element.innerHTML = action.value;
+          element.innerHTML =  finalValue;
           element.dispatchEvent(
             new InputEvent("input", {
               bubbles: true,
-              data: action.value,
+              data:  finalValue,
               inputType: "insertText",
             })
           );
           element.dispatchEvent(new Event("change", { bubbles: true }));
-          actionSuccess = element.textContent === action.value;
+          actionSuccess = element.textContent ===  finalValue;
         } else {
           element.value = "";
           await delay(100);
-          element.value = action.value;
+          element.value =  finalValue;
           element.dispatchEvent(
             new InputEvent("input", {
               bubbles: true,
-              data: action.value,
+              data:  finalValue,
               inputType: "insertText",
             })
           );
           element.dispatchEvent(new Event("change", { bubbles: true }));
-          actionSuccess = element.value === action.value;
+          actionSuccess = element.value ===  finalValue;
         }
         resMessage = "Successfully changed value";
         break;

@@ -40,3 +40,4 @@ export const nonTextKeys = [
   "ArrowLeft",
   "ArrowRight",
 ];
+export const IS_CUSTOM = ['randomName','randomNumber','randomAlphaNumeric','randomEmail']

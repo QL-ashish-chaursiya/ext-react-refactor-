@@ -1,3 +1,5 @@
+import { IS_CUSTOM } from "../utils/constant";
+
 export function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
@@ -540,6 +542,52 @@ export function waitForIframe(refSrc, timeoutMs = 5000, intervalMs = 1000) {
 
     checkIframe();
   });
+}
+export function resolveVariableValue(variable) {
+  if (!variable) return "";
+
+  // 🧩 Built-in variable generators
+  const generateRandomString = (len = 10) =>
+    Array.from({ length: len }, () =>
+      String.fromCharCode(Math.floor(Math.random() * 26) + 97)
+    ).join("");
+
+  const generateRandomNumber = (len = 10) =>
+    Array.from({ length: len }, () => Math.floor(Math.random() * 10)).join("");
+
+  const generateAlphaNumeric = (len = 10) => {
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    return Array.from({ length: len }, () =>
+      chars.charAt(Math.floor(Math.random() * chars.length))
+    ).join("");
+  };
+
+  const generateRandomEmail = (len = 10) => {
+    const name = generateAlphaNumeric(Math.max(4, len));
+    return `${name.toLowerCase()}@example.com`;
+  };
+
+  // 🧠 Built-in variable logic
+  const { name, length, value } = variable;
+ 
+  if (IS_CUSTOM.includes(name)) {
+    switch (name) {
+      case "randomName":
+        return generateRandomString(length);
+      case "randomNumber":
+        return generateRandomNumber(length);
+      case "randomAlphaNumeric":
+        return generateAlphaNumeric(length);
+      case "randomEmail":
+        return generateRandomEmail(length);
+      default:
+        return ""; // unknown built-in
+    }
+  }
+
+  // 🧾 Custom variable (use stored value)
+  return value || "";
 }
 
   
