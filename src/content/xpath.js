@@ -137,15 +137,13 @@ export function getElementInfo(element) {
         if (indexed) xpaths.push(indexed);
       }
     }
-    
-    if (el.attributes) {
-      for (const attrName of ALLOWED_ATTRIBUTES) {
-        const attrValue = el.getAttribute(attrName);
-        if (attrValue) {
-          const sel = createXPathByAttribute({ el, attrName, attrValue });
-          const indexed = convertToIndexedXpathIfNeeded(el, sel);
-          if (indexed) xpaths.push(indexed);
-        }
+     if (el.attributes) {
+      const dataAttrs = Array.from(el.attributes).filter((a) => ALLOWED_ATTRIBUTES.includes(a.name) );
+      for (const { name, value } of dataAttrs) {
+        const sel = createXPathByAttribute({ el, attrName: name, attrValue: value });
+        const indexed = convertToIndexedXpathIfNeeded(el, sel);
+        if (indexed) xpaths.push(indexed);
+
       }
     }
   }
