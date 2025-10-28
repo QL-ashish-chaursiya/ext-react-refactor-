@@ -1,7 +1,7 @@
 //background.handler.js
  
 import { supabaseClient } from './supabase.js';
-import { captureAndUploadScreenshot, setActiveTab,attachDebuggerToTab, attachContentScriptToIframe } from './utils.js';
+import { captureAndUploadScreenshot, setActiveTab,attachDebuggerToTab, attachContentScriptToIframe, dataURLtoBlob, captureTab } from './utils.js';
 import { stopRecording, recordAction } from './recording.js';
 import { getState, initialState, setState } from './states.js';
 import { codeMap, keyCodeMap, nonTextKeys } from '../utils/constant.js';
@@ -244,7 +244,42 @@ export function setupMessageListeners() {
                   }
                 
                
-      
+              case 'CAPTURE_PAGE':
+                 
+                 const dataUrl = await captureTab();
+    return sendResponse({ dataUrl });
+    //return true;
+           case 'UPLOAD_SCREENSHOT':
+            console.log("3 :called UPLOAD_SCREENSHOT")
+            const { cropped, rect,isAction } = message
+             const fileName = `capture_${Date.now()}.png`;
+  const blob = dataURLtoBlob(cropped);
+
+  const { data, error } = await supabaseClient.storage
+    .from("screenshots")
+    .upload(fileName, blob, { contentType: "image/png" });
+
+  if (error) {
+    console.error("Upload failed:", error);
+    return;
+  }
+
+  const publicUrl =  supabaseClient.storage
+    .from("screenshots")
+    .getPublicUrl(fileName).data.publicUrl;
+     const savedObj = { 
+        type:"compareImage",
+         description:"comparing img",
+        rect,
+        image_url: publicUrl
+      }
+      console.log("publicUrl",publicUrl)
+      if(isAction){
+     recordAction(savedObj);
+      }
+ 
+   return {  url: publicUrl }; 
+  
               case 'recordAction':
                 
                 recordAction({ ...message.action });

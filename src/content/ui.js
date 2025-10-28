@@ -12,6 +12,7 @@ export async function updateBtnUI() {
   const startPauseBtn = shadowRoot.getElementById('startPauseRecordingBtn');
   const statusText = shadowRoot.getElementById('recordingStatusText');
   const addHoverBtn = shadowRoot.getElementById('addHoverBtn');
+   const compareImgBtn = shadowRoot.getElementById('compareImgBtn');
   const hoverConfigUI = shadowRoot.getElementById('hoverConfigUI');
   const multipleHoverCheckbox = shadowRoot.getElementById('multipleHoverCheckbox');
   const state = await getState();
@@ -20,16 +21,22 @@ export async function updateBtnUI() {
     startPauseBtn.textContent = 'Start Recording';
     addHoverBtn.disabled = true;
     addHoverBtn.classList.add('disabled');
+    compareImgBtn.disabled = true
+    compareImgBtn.classList.add('disabled')
     statusText.textContent = 'Not Recording';
   } else if (state.isPaused) {
     startPauseBtn.textContent = 'Resume Recording';
     addHoverBtn.disabled = true;
     addHoverBtn.classList.add('disabled');
+     compareImgBtn.disabled = true
+    compareImgBtn.classList.add('disabled')
     statusText.textContent = 'Paused';
   } else {
     startPauseBtn.textContent = 'Pause Recording';
     addHoverBtn.disabled = false;
     addHoverBtn.classList.remove('disabled');
+    compareImgBtn.disabled = false
+    compareImgBtn.classList.remove('disabled')
     statusText.textContent = 'Recording...';
   }
   
@@ -37,7 +44,11 @@ export async function updateBtnUI() {
     addHoverBtn.style.display = 'none';
     hoverConfigUI.style.display = 'flex';
   }
-  
+  if(state.compareImg){
+      compareImgBtn.textContent = 'Stop Compare Image';
+  }else{
+     compareImgBtn.textContent = 'Compare Image';
+  }
   if(state.multipleHover){
     multipleHoverCheckbox.checked = true;
   }
@@ -129,12 +140,18 @@ export async function setupUI() {
 
   // Get elements from shadow DOM
   const addHoverBtn = shadowRoot.getElementById('addHoverBtn');
+  const compareImgBtn = shadowRoot.getElementById('compareImgBtn');
   const hoverConfigUI = shadowRoot.getElementById('hoverConfigUI');
   const multipleHoverCheckbox = shadowRoot.getElementById('multipleHoverCheckbox');
   const hoverBackBtn = shadowRoot.getElementById('hoverBackBtn');
   const startPauseBtn = shadowRoot.getElementById('startPauseRecordingBtn');
   const stopBtn = shadowRoot.getElementById('stopBtn');
+compareImgBtn.onclick = async () => {
+   const state = await getState();
+    if (state.isPaused) return;
+     await setState({ compareImg: !state.compareImg });
 
+}
   // Button event handlers
   addHoverBtn.onclick = async () => {
     const state = await getState();

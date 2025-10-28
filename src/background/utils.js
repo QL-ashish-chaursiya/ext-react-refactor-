@@ -43,9 +43,7 @@ export  function isInjectableUrl(url) {
       return false;
     }
   }
-  
-  export  async function captureAndUploadScreenshot() {
-    function captureTab() {
+  export  function captureTab() {
       return new Promise((resolve, reject) => {
         chrome.tabs.captureVisibleTab(null, { format: 'png' }, function(dataUrl) {
           if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
@@ -53,6 +51,8 @@ export  function isInjectableUrl(url) {
         });
       });
     }
+  export  async function captureAndUploadScreenshot() {
+    
   
     function b64toBlob(b64Data, contentType = '', sliceSize = 512) {
       const byteCharacters = atob(b64Data);
@@ -288,4 +288,12 @@ export  async function attachDebuggerToTab(tabId, retries = 5, delayMs = 1000) {
     console.error("[BG] ❌ Script injection failed:", err);
     throw err;
   }
+}
+ export function dataURLtoBlob(dataUrl) {
+  const [header, base64] = dataUrl.split(",");
+  const mime = header.match(/:(.*?);/)[1];
+  const binary = atob(base64);
+  const array = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+  return new Blob([array], { type: mime });
 }

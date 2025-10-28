@@ -7,7 +7,8 @@ const defaultState = {
   recording:  true,
   hoverElements: [],
  multipleHover:false,
- hoverModeActive:false
+ hoverModeActive:false,
+ compareImg:false
 
 };
  

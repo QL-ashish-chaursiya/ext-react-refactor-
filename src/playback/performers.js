@@ -15,6 +15,7 @@ import {
   resolveVariableValue,
 } from "./utils.js";
 import { runAssertions } from "./assertions.js";
+import { captureAndUpload, compare, cropImage } from "../utils/helper.js";
 
 export async function runAutomation() {
   let preSavedActions = new Set();
@@ -363,6 +364,14 @@ async function performAction(action, arr, index) {
           assertions: [],
         };
       }
+      case 'compareImage':
+         const newUrl =  await captureAndUpload(action.rect,false)
+    
+        const aiRes = await compare(action.image_url,newUrl)
+        
+        actionSuccess =  aiRes.status=='pass';
+        resMessage = aiRes.reason;
+        break;
       case "Enter":
       case "Tab":
       case "ArrowUp":

@@ -94,13 +94,13 @@
   }
   
  
-  #addHoverBtn, #startPauseRecordingBtn {
+  #addHoverBtn, #startPauseRecordingBtn, #compareImgBtn {
     border-color: rgb(0, 170, 120);
     color: rgb(0, 136, 96);
     background: white;
   }
   
-  #addHoverBtn:hover:not(.disabled), #startPauseRecordingBtn:hover {
+  #addHoverBtn:hover:not(.disabled), #startPauseRecordingBtn:hover,#compareImgBtn:hover {
     background: rgba(0, 170, 120, 0.05);
     transform: translateY(-1px);
   }
@@ -216,6 +216,7 @@
           <button id="hoverBackBtn">Back</button>
         </div>
         <button id="startPauseRecordingBtn" class="button">Start Recording</button>
+         <button id="compareImgBtn" class="button disabled" disabled>Compare Image</button>
         <button id="stopBtn">Stop</button>
       </div>
     </div>
