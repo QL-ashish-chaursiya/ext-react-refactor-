@@ -128,7 +128,6 @@ export const compare = async (oldUrl, newUrl) => {
 
     try {
       const cropped = await cropImage(dataUrl, cropCoordinates);
-      downloadImage(cropped);
       await sendMessagePromise({
         command: "UPLOAD_SCREENSHOT",
         cropped,
@@ -180,11 +179,6 @@ export const compare = async (oldUrl, newUrl) => {
 }
 
  
-    export function downloadImage(dataUrl) {
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = 'screenshot.png';
-      link.click();
-    }
+   
 
  
