@@ -2,6 +2,7 @@
 import { attachAllListeners, handleClick, removeAllListeners, sendAction } from './handlers.js';
 import { getState, setState, subscribe } from './content-states.js';
 import { HOVERUI, WRAPPER_CSS } from './ui.css.js';
+import { DrawCanvas, sendMessagePromise } from '../utils/helper.js';
 
 let shadowRoot = null;
 let shadowHost = null;
@@ -149,8 +150,9 @@ export async function setupUI() {
 compareImgBtn.onclick = async () => {
    const state = await getState();
     if (state.isPaused) return;
-     await setState({ compareImg: !state.compareImg });
-
+     
+     const { dataUrl } = await sendMessagePromise({ command: "CAPTURE_PAGE" });
+          DrawCanvas(dataUrl)
 }
   // Button event handlers
   addHoverBtn.onclick = async () => {

@@ -30,14 +30,8 @@ export function attachAllListeners() {
     capture: true,
     passive: true,
   });
-   document.addEventListener("mousemove", handleMouseMoveForImg, {
-    capture: true,
-    passive: true,
-  });
-   document.addEventListener("mouseup", handleMouseUpForImg, {
-    capture: true,
-    passive: true,
-  });
+  
+    
   document.addEventListener("keydown", handleKeydown, {
     capture: true,
     passive: true,
@@ -52,8 +46,8 @@ export function removeAllListeners() {
   document.removeEventListener("input", handleInput, true);
   document.removeEventListener("change", handleChange, true);
   document.removeEventListener("mousedown", handleMouseDown, true);
-   document.removeEventListener("mousemove", handleMouseMoveForImg, true);
-     document.removeEventListener("mouseup", handleMouseUpForImg, true);
+  
+   
   document.removeEventListener("mouseover", handleHoverIn, true);
   document.removeEventListener("mouseout", handleHoverOut, true);
   document.removeEventListener("scroll", handleScroll, true); // ✅ Changed
@@ -249,25 +243,6 @@ export async function handleMouseDown(event) {
   }
   console.log("call");
   if (event.target.closest('[data-recorder-ui="true"]')) return;
-  if(state.compareImg){
-   startX = event.clientX;
-    startY = event.clientY;
-    document.body.style.userSelect = 'none';
-    document.body.style.webkitUserSelect = 'none';
-    document.body.style.mozUserSelect = 'none';
-    document.body.style.msUserSelect = 'none';
-
-  selectionBox = document.createElement('div');
-  selectionBox.style.position = 'fixed';
-  selectionBox.style.border = '2px dashed #00f';
-  selectionBox.style.background = 'rgba(0,0,255,0.1)';
-  selectionBox.style.left = `${startX}px`;
-  selectionBox.style.top = `${startY}px`;
-  selectionBox.style.pointerEvents = 'none'; 
-  selectionBox.style.zIndex = '999999';
-  document.body.appendChild(selectionBox);
-  return
-  }
   const target = event.target;
   const rect = target.getBoundingClientRect();
   const offsetX = event.clientX - rect.left;
@@ -306,28 +281,8 @@ function isPartOfOtpGroup(input) {
     (inp) => inp.maxLength === 1 || inp.getAttribute("maxlength") === "1"
   );
 }
-export async function handleMouseMoveForImg(e){
-  //const state = await getState()
-if (!selectionBox) return;
-  endX = e.clientX;
-  endY = e.clientY;
-  selectionBox.style.width = `${Math.abs(endX - startX)}px`;
-  selectionBox.style.height = `${Math.abs(endY - startY)}px`;
-  selectionBox.style.left = `${Math.min(startX, endX)}px`;
-  selectionBox.style.top = `${Math.min(startY, endY)}px`;
-}
-export async function handleMouseUpForImg(e){
-   //const state = await getState()
-if (!selectionBox) return;
- const rect = selectionBox.getBoundingClientRect();
  
-  await captureAndUpload(rect,true)
-
  
-  selectionBox.remove();
-  selectionBox = null;
-   await setState({ compareImg: false });
-}
 export async function handleChange(event) {
   const state = await getState();
   if (!state.recording || !isRuntimeAvailable() || state.hoverModeActive)
