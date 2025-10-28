@@ -150,7 +150,7 @@ export async function setupUI() {
 compareImgBtn.onclick = async () => {
    const state = await getState();
     if (state.isPaused) return;
-     
+     await setState({ compareImg: true });
      const { dataUrl } = await sendMessagePromise({ command: "CAPTURE_PAGE" });
           DrawCanvas(dataUrl)
 }

@@ -238,7 +238,7 @@ function hasMoreThanOneNonAlphabet(str) {
 export async function handleMouseDown(event) {
   const state = await getState();
 
-  if (!state.recording || !isRuntimeAvailable() || state.hoverModeActive){
+  if (!state.recording || !isRuntimeAvailable() || state.hoverModeActive || state.compareImg){
     return
   }
   console.log("call");
