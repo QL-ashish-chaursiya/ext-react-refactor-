@@ -61,69 +61,86 @@ export const compare = async (oldUrl, newUrl) => {
   console.log("Gemini comparison:", result);
   return result;
 };
-export async function DrawCanvas(dataUrl){
-     // Create a semi-transparent overlay to cover the page.
-    const overlay = document.createElement('div');
-    overlay.style.position = 'fixed';
-    overlay.style.top = '0';
-    overlay.style.left = '0';
-    overlay.style.width = '100%';
-    overlay.style.height = '100%';
-    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    overlay.style.zIndex = '999999';
-    overlay.style.cursor = 'crosshair';
-    document.body.appendChild(overlay);
- 
-    // Track mouse events to draw the selection rectangle.
-    let startX, startY, endX, endY;
-    let isSelecting = false;
-    let selectionRect = document.createElement('div');
-    selectionRect.style.border = '2px dashed #FFF';
-    selectionRect.style.position = 'absolute';
- 
-    overlay.addEventListener('mousedown', (e) => {
-      isSelecting = true;
-      startX = e.clientX;
-      startY = e.clientY;
-      selectionRect.style.left = `${startX}px`;
-      selectionRect.style.top = `${startY}px`;
-      overlay.appendChild(selectionRect);
-    });
- 
-    overlay.addEventListener('mousemove', (e) => {
-      if (!isSelecting) return;
-      endX = e.clientX;
-      endY = e.clientY;
-      selectionRect.style.width = `${Math.abs(endX - startX)}px`;
-      selectionRect.style.height = `${Math.abs(endY - startY)}px`;
-      selectionRect.style.left = `${Math.min(startX, endX)}px`;
-      selectionRect.style.top = `${Math.min(startY, endY)}px`;
-    });
- 
-    overlay.addEventListener('mouseup', async () => {
-      if (isSelecting) {
-        isSelecting = false;
-        overlay.remove(); // Remove the overlay after selection is complete.
- 
-        // Send the cropping coordinates back to the background script.
-        const cropCoordinates = {
-          x: Math.min(startX, endX),
-          y: Math.min(startY, endY),
-          width: Math.abs(endX - startX),
-          height: Math.abs(endY - startY),
-        };
-        const  cropped = await cropImage(dataUrl, cropCoordinates);
-        downloadImage(cropped);
-        const { url } = await sendMessagePromise({
-      command: "UPLOAD_SCREENSHOT",
-      cropped,
-      rect:cropCoordinates,
-      isAction:true,
-    });
-}})
+ export async function DrawCanvas(dataUrl) {
+  const overlay = document.createElement('div');
+  overlay.style.position = 'fixed';
+  overlay.style.top = '0';
+  overlay.style.left = '0';
+  overlay.style.width = '100%';
+  overlay.style.height = '100%';
+  overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+  overlay.style.zIndex = '999999';
+  overlay.style.cursor = 'crosshair';
+  document.body.appendChild(overlay);
 
-    
+  let startX, startY, endX, endY;
+  let isSelecting = false;
+  const selectionRect = document.createElement('div');
+  selectionRect.style.border = '2px dashed #FFF';
+  selectionRect.style.position = 'absolute';
+
+  overlay.addEventListener('mousedown', (e) => {
+    isSelecting = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    // ensure initial values exist
+    endX = startX;
+    endY = startY;
+
+    selectionRect.style.left = `${startX}px`;
+    selectionRect.style.top = `${startY}px`;
+    selectionRect.style.width = '0px';
+    selectionRect.style.height = '0px';
+    overlay.appendChild(selectionRect);
+  });
+
+  overlay.addEventListener('mousemove', (e) => {
+    if (!isSelecting) return;
+    endX = e.clientX;
+    endY = e.clientY;
+    const width = Math.abs(endX - startX);
+    const height = Math.abs(endY - startY);
+    selectionRect.style.width = `${width}px`;
+    selectionRect.style.height = `${height}px`;
+    selectionRect.style.left = `${Math.min(startX, endX)}px`;
+    selectionRect.style.top = `${Math.min(startY, endY)}px`;
+  });
+
+  overlay.addEventListener('mouseup', async () => {
+    if (!isSelecting) return;
+    isSelecting = false;
+
+    overlay.remove(); // remove overlay first to restore normal view
+
+    // safe coordinates
+    const cropCoordinates = {
+      x: Math.min(startX, endX),
+      y: Math.min(startY, endY),
+      width: Math.abs(endX - startX),
+      height: Math.abs(endY - startY),
+    };
+
+    // 🔹 guard against clicks without drag
+    if (cropCoordinates.width < 25 || cropCoordinates.height < 25) {
+      console.log("Single click detected — skipping crop and download.");
+      return; // ✅ stops further action
     }
+
+    try {
+      const cropped = await cropImage(dataUrl, cropCoordinates);
+      downloadImage(cropped);
+      await sendMessagePromise({
+        command: "UPLOAD_SCREENSHOT",
+        cropped,
+        rect: cropCoordinates,
+        isAction: true,
+      });
+    } catch (err) {
+      console.error("Cropping failed:", err);
+    }
+  });
+}
+
   export function cropImage(dataUrl, coords) {
   return new Promise((resolve, reject) => {
     const image = new Image();
