@@ -365,8 +365,14 @@ async function performAction(action, arr, index) {
         };
       }
       case 'compareImage':
-         const newUrl =  await captureAndUpload(action.rect,false)
-    
+         updateStatus("⏳ Comparing Image...");
+         window.scrollTo({
+              left: action.rect.scrollX || 0,
+              top: action.rect.scrollY || 0,
+              behavior: "smooth",
+            });
+            await delay(1500)
+         const newUrl =  await captureAndUpload(action.rect)
         const aiRes = await compare(action.image_url,newUrl)
         
         actionSuccess =  aiRes.status=='pass';

@@ -26,7 +26,7 @@ export function sendMessagePromise(message) {
     }
   });
 }
-export async function captureAndUpload(rect, isAction = false) {
+export async function captureAndUpload(rect) {
   try {
     // Step 1: capture screenshot
     const { dataUrl } = await sendMessagePromise({ command: "CAPTURE_PAGE" });
@@ -63,7 +63,7 @@ export const compare = async (oldUrl, newUrl) => {
   console.log("Gemini comparison:", result);
   return result;
 };
- export async function DrawCanvas(dataUrl) {
+ export async function DrawCanvas() {
   const overlay = document.createElement('div');
   overlay.style.position = 'fixed';
   overlay.style.top = '0';
@@ -108,46 +108,50 @@ export const compare = async (oldUrl, newUrl) => {
     selectionRect.style.top = `${Math.min(startY, endY)}px`;
   });
 
-  overlay.addEventListener('mouseup', async () => {
-    if (!isSelecting) return;
-    isSelecting = false;
+   overlay.addEventListener('mouseup', async () => {
+  if (!isSelecting) return;
+  isSelecting = false;
 
-    overlay.remove(); // remove overlay first to restore normal view
+  overlay.remove();
 
-    // safe coordinates
-    const cropCoordinates = {
-      x: Math.min(startX, endX),
-      y: Math.min(startY, endY),
-      width: Math.abs(endX - startX),
-      height: Math.abs(endY - startY),
+  const scrollX = window.scrollX || document.documentElement.scrollLeft;
+  const scrollY = window.scrollY || document.documentElement.scrollTop;
+
+  const cropCoordinates = {
+    x: Math.min(startX, endX),
+    y: Math.min(startY, endY),
+    width: Math.abs(endX - startX),
+    height: Math.abs(endY - startY),
+     scrollX, 
+    scrollY,
+  };
+
+  if (cropCoordinates.width < 25 || cropCoordinates.height < 25) {
+    console.log("Single click detected — skipping crop and download.");
+    await setState({ compareImg: false });
+    return;
+  }
+
+  try {
+    const { dataUrl } = await sendMessagePromise({ command: "CAPTURE_PAGE" });
+    const cropped = await cropImage(dataUrl, cropCoordinates);
+    const actObj = { 
+      type:"compareImage",
+      description:"Click on Compare Image",
+      rect: cropCoordinates,
+      image_url: cropped,
+      isTopFrame: true,
+      iframeIdentifier: null
     };
-
-    // 🔹 guard against clicks without drag
-    if (cropCoordinates.width < 25 || cropCoordinates.height < 25) {
-      console.log("Single click detected — skipping crop and download.");
-       await setState({ compareImg: false });
-      return; // ✅ stops further action
-    }
-
-    try {
-      const cropped = await cropImage(dataUrl, cropCoordinates);
-      const actObj = { 
-        type:"compareImage",
-         description:"Click on Compare Image",
-        rect:cropCoordinates,
-        image_url:  cropped,
-        isTopFrame:true,
-        iframeIdentifier:null
-      }
-      await sendMessagePromise({
-        command: "recordAction",
-         action:actObj
-      });
-       await setState({ compareImg: false });
-    } catch (err) {
-      console.error("Cropping failed:", err);
-    }
-  });
+    await sendMessagePromise({
+      command: "recordAction",
+      action: actObj
+    });
+    await setState({ compareImg: false });
+  } catch (err) {
+    console.error("Cropping failed:", err);
+  }
+});
 }
 
   export function cropImage(dataUrl, coords) {
