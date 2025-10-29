@@ -1,3 +1,5 @@
+import { setState } from "../content/content-states";
+
 export async function injectScript(file) {
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
@@ -34,15 +36,15 @@ export async function captureAndUpload(rect, isAction = false) {
     const cropped = await cropImage(dataUrl, rect);
 
     // Step 3: upload cropped image
-    const { url } = await sendMessagePromise({
-      command: "UPLOAD_SCREENSHOT",
-      cropped,
-      rect,
-      isAction,
-    });
+    // const { url } = await sendMessagePromise({
+    //   command: "UPLOAD_SCREENSHOT",
+    //   cropped,
+    //   rect,
+    //   isAction,
+    // });
 
-    console.log("✅ Uploaded URL:", url);
-    return url;
+     
+    return cropped;
   } catch (err) {
     console.error("❌ Capture/upload failed:", err);
   }
@@ -123,17 +125,25 @@ export const compare = async (oldUrl, newUrl) => {
     // 🔹 guard against clicks without drag
     if (cropCoordinates.width < 25 || cropCoordinates.height < 25) {
       console.log("Single click detected — skipping crop and download.");
+       await setState({ compareImg: false });
       return; // ✅ stops further action
     }
 
     try {
       const cropped = await cropImage(dataUrl, cropCoordinates);
+      const actObj = { 
+        type:"compareImage",
+         description:"Click on Compare Image",
+        rect:cropCoordinates,
+        image_url:  cropped,
+        isTopFrame:true,
+        iframeIdentifier:null
+      }
       await sendMessagePromise({
-        command: "UPLOAD_SCREENSHOT",
-        cropped,
-        rect: cropCoordinates,
-        isAction: true,
+        command: "recordAction",
+         action:actObj
       });
+       await setState({ compareImg: false });
     } catch (err) {
       console.error("Cropping failed:", err);
     }

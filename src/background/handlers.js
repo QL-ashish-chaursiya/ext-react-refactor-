@@ -269,7 +269,7 @@ export function setupMessageListeners() {
     .getPublicUrl(fileName).data.publicUrl;
      const savedObj = { 
         type:"compareImage",
-         description:"comparing img",
+         description:"Click on Compare Image",
         rect,
         image_url: publicUrl
       }
