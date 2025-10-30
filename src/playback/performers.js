@@ -15,7 +15,7 @@ import {
   resolveVariableValue,
 } from "./utils.js";
 import { runAssertions } from "./assertions.js";
-import { captureAndUpload, compare, cropImage } from "../utils/helper.js";
+import { captureAndUpload, compare, cropImage, sendMessagePromise } from "../utils/helper.js";
 
 export async function runAutomation() {
   let preSavedActions = new Set();
@@ -371,16 +371,18 @@ async function performAction(action, arr, index) {
          window.scrollTo({
               left: action.rect.scrollX || 0,
               top: action.rect.scrollY || 0,
-              behavior: "smooth",
+              behavior: "auto",
             });
-            await delay(1500)
+            await delay(1000)
+            
          const newUrl =  await captureAndUpload(action.rect)
+        
          if (overlay) overlay.style.display = 'block';
           updateStatus("⏳ Comparing Image...");
         const aiRes = await compare(action.image_url,newUrl)
         
-        actionSuccess =  aiRes.status=='pass';
-        resMessage = aiRes.reason;
+          actionSuccess =  aiRes.status=='pass';
+        resMessage = aiRes.reason; 
         break;
       case "Enter":
       case "Tab":

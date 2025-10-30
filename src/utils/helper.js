@@ -63,6 +63,13 @@ export const compare = async (oldUrl, newUrl) => {
   console.log("Gemini comparison:", result);
   return result;
 };
+function isNearBottom(startY, endY) {
+  const viewportHeight = window.innerHeight;
+  const selectedBottom = Math.min(startY, endY) + Math.abs(endY - startY);
+  const diffFromBottom = viewportHeight - selectedBottom;
+  return diffFromBottom < 70; // ✅ true if within 70px of viewport bottom
+}
+
  export async function DrawCanvas() {
    return new Promise((resolve) => {
      // Store original scroll position
@@ -131,16 +138,16 @@ export const compare = async (oldUrl, newUrl) => {
   if (!isSelecting) return;
   e.preventDefault();
   isSelecting = false;
-
+ 
   const cropCoordinates = {
     x: Math.min(startX, endX),
     y: Math.min(startY, endY),
     width: Math.abs(endX - startX),
     height: Math.abs(endY - startY),
     scrollX: originalScrollX, 
-    scrollY: originalScrollY,
+    scrollY:  originalScrollY
   };
-
+ 
   overlay.remove();
   
   // Restore original styles
@@ -161,7 +168,9 @@ export const compare = async (oldUrl, newUrl) => {
     resolve(); 
     return;
   }
-
+ if(isNearBottom(startY, endY)){
+   cropCoordinates.scrollY =  cropCoordinates.scrollY+50
+}
   try {
     const { dataUrl } = await sendMessagePromise({ command: "CAPTURE_PAGE" });
     const cropped = await cropImage(dataUrl, cropCoordinates);
