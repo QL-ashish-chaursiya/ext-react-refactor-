@@ -365,7 +365,9 @@ async function performAction(action, arr, index) {
         };
       }
       case 'compareImage':
-         updateStatus("⏳ Comparing Image...");
+         
+         const overlay = document.getElementById('__playback_status_overlay__');
+  if (overlay) overlay.style.display = 'none';
          window.scrollTo({
               left: action.rect.scrollX || 0,
               top: action.rect.scrollY || 0,
@@ -373,6 +375,8 @@ async function performAction(action, arr, index) {
             });
             await delay(1500)
          const newUrl =  await captureAndUpload(action.rect)
+         if (overlay) overlay.style.display = 'block';
+          updateStatus("⏳ Comparing Image...");
         const aiRes = await compare(action.image_url,newUrl)
         
         actionSuccess =  aiRes.status=='pass';
