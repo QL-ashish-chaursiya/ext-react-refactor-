@@ -63,8 +63,16 @@ export const compare = async (oldUrl, newUrl) => {
   console.log("Gemini comparison:", result);
   return result;
 };
- export async function DrawCanvas() {
+  export async function DrawCanvas() {
    return new Promise((resolve) => {
+     // Store original overflow styles
+     const originalOverflow = document.body.style.overflow;
+     const originalHtmlOverflow = document.documentElement.style.overflow;
+     
+     // Prevent scrolling
+     document.body.style.overflow = 'hidden';
+     document.documentElement.style.overflow = 'hidden';
+     
      const overlay = document.createElement('div');
   overlay.style.position = 'fixed';
   overlay.style.top = '0';
@@ -83,10 +91,10 @@ export const compare = async (oldUrl, newUrl) => {
   selectionRect.style.position = 'absolute';
 
   overlay.addEventListener('mousedown', (e) => {
+    e.preventDefault(); // Prevent default behavior
     isSelecting = true;
     startX = e.clientX;
     startY = e.clientY;
-    // ensure initial values exist
     endX = startX;
     endY = startY;
 
@@ -99,6 +107,7 @@ export const compare = async (oldUrl, newUrl) => {
 
   overlay.addEventListener('mousemove', (e) => {
     if (!isSelecting) return;
+    e.preventDefault(); // Prevent default behavior
     endX = e.clientX;
     endY = e.clientY;
     const width = Math.abs(endX - startX);
@@ -109,12 +118,12 @@ export const compare = async (oldUrl, newUrl) => {
     selectionRect.style.top = `${Math.min(startY, endY)}px`;
   });
 
-   overlay.addEventListener('mouseup', async () => {
+   overlay.addEventListener('mouseup', async (e) => {
   if (!isSelecting) return;
+  e.preventDefault();
   isSelecting = false;
 
-  overlay.remove();
-
+  // Store coordinates BEFORE removing overlay
   const scrollX = window.scrollX || document.documentElement.scrollLeft;
   const scrollY = window.scrollY || document.documentElement.scrollTop;
 
@@ -123,18 +132,29 @@ export const compare = async (oldUrl, newUrl) => {
     y: Math.min(startY, endY),
     width: Math.abs(endX - startX),
     height: Math.abs(endY - startY),
-     scrollX, 
+    scrollX, 
     scrollY,
   };
 
-  if (cropCoordinates.width < 25 || cropCoordinates.height < 25) {
+  // Remove overlay and selection rect IMMEDIATELY
+  overlay.remove();
+  
+  // Restore original overflow styles
+  document.body.style.overflow = originalOverflow;
+  document.documentElement.style.overflow = originalHtmlOverflow;
+
+  // CRITICAL: Wait for DOM to update and repaint
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  if (cropCoordinates.width < 60 || cropCoordinates.height < 60) {
     console.log("Single click detected — skipping crop and download.");
     await setState({ compareImg: false });
-      resolve(); 
+    resolve(); 
     return;
   }
 
   try {
+    // Capture AFTER overlay is removed and DOM is repainted
     const { dataUrl } = await sendMessagePromise({ command: "CAPTURE_PAGE" });
     const cropped = await cropImage(dataUrl, cropCoordinates);
     const actObj = { 
@@ -153,7 +173,7 @@ export const compare = async (oldUrl, newUrl) => {
   } catch (err) {
     console.error("Cropping failed:", err);
   }
-    resolve();
+  resolve();
 });
   });
   
