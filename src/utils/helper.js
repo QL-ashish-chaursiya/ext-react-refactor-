@@ -64,7 +64,8 @@ export const compare = async (oldUrl, newUrl) => {
   return result;
 };
  export async function DrawCanvas() {
-  const overlay = document.createElement('div');
+   return new Promise((resolve) => {
+     const overlay = document.createElement('div');
   overlay.style.position = 'fixed';
   overlay.style.top = '0';
   overlay.style.left = '0';
@@ -129,6 +130,7 @@ export const compare = async (oldUrl, newUrl) => {
   if (cropCoordinates.width < 25 || cropCoordinates.height < 25) {
     console.log("Single click detected — skipping crop and download.");
     await setState({ compareImg: false });
+      resolve(); 
     return;
   }
 
@@ -151,7 +153,10 @@ export const compare = async (oldUrl, newUrl) => {
   } catch (err) {
     console.error("Cropping failed:", err);
   }
+    resolve();
 });
+  });
+  
 }
 
   export function cropImage(dataUrl, coords) {

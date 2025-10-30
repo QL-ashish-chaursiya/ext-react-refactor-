@@ -2,7 +2,7 @@
 import { attachAllListeners, handleClick, removeAllListeners, sendAction } from './handlers.js';
 import { getState, setState, subscribe } from './content-states.js';
 import { HOVERUI, WRAPPER_CSS } from './ui.css.js';
-import { captureFullPage, DrawCanvas, sendMessagePromise } from '../utils/helper.js';
+import {  DrawCanvas, sendMessagePromise } from '../utils/helper.js';
 
 let shadowRoot = null;
 let shadowHost = null;
@@ -147,12 +147,23 @@ export async function setupUI() {
   const hoverBackBtn = shadowRoot.getElementById('hoverBackBtn');
   const startPauseBtn = shadowRoot.getElementById('startPauseRecordingBtn');
   const stopBtn = shadowRoot.getElementById('stopBtn');
-compareImgBtn.onclick = async () => {
-   const state = await getState();
-    if (state.isPaused) return;
-     await setState({ compareImg: true });
-          DrawCanvas()
-}
+ compareImgBtn.onclick = async () => {
+  const state = await getState();
+  if (state.isPaused) return;
+
+  // 🔹 Hide floating control panel
+  if (shadowHost) shadowHost.style.display = "none";
+
+  await setState({ compareImg: true });
+
+  // 🔹 Wait for DrawCanvas to complete
+  await DrawCanvas();
+
+  // 🔹 Show control panel again
+  if (shadowHost) shadowHost.style.display = "block";
+};
+
+
   // Button event handlers
   addHoverBtn.onclick = async () => {
     const state = await getState();
