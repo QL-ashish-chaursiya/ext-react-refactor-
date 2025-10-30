@@ -63,15 +63,24 @@ export const compare = async (oldUrl, newUrl) => {
   console.log("Gemini comparison:", result);
   return result;
 };
-  export async function DrawCanvas() {
+ export async function DrawCanvas() {
    return new Promise((resolve) => {
+     // Store original scroll position
+     const originalScrollX = window.scrollX || document.documentElement.scrollLeft;
+     const originalScrollY = window.scrollY || document.documentElement.scrollTop;
+     
      // Store original overflow styles
      const originalOverflow = document.body.style.overflow;
      const originalHtmlOverflow = document.documentElement.style.overflow;
+     const originalPosition = document.body.style.position;
+     const originalTop = document.body.style.top;
+     const originalWidth = document.body.style.width;
      
-     // Prevent scrolling
+     // Prevent scrolling while maintaining position
+     document.body.style.position = 'fixed';
+     document.body.style.top = `-${originalScrollY}px`;
+     document.body.style.width = '100%';
      document.body.style.overflow = 'hidden';
-     document.documentElement.style.overflow = 'hidden';
      
      const overlay = document.createElement('div');
   overlay.style.position = 'fixed';
@@ -91,7 +100,7 @@ export const compare = async (oldUrl, newUrl) => {
   selectionRect.style.position = 'absolute';
 
   overlay.addEventListener('mousedown', (e) => {
-    e.preventDefault(); // Prevent default behavior
+    e.preventDefault();
     isSelecting = true;
     startX = e.clientX;
     startY = e.clientY;
@@ -107,7 +116,7 @@ export const compare = async (oldUrl, newUrl) => {
 
   overlay.addEventListener('mousemove', (e) => {
     if (!isSelecting) return;
-    e.preventDefault(); // Prevent default behavior
+    e.preventDefault();
     endX = e.clientX;
     endY = e.clientY;
     const width = Math.abs(endX - startX);
@@ -123,27 +132,27 @@ export const compare = async (oldUrl, newUrl) => {
   e.preventDefault();
   isSelecting = false;
 
-  // Store coordinates BEFORE removing overlay
-  const scrollX = window.scrollX || document.documentElement.scrollLeft;
-  const scrollY = window.scrollY || document.documentElement.scrollTop;
-
   const cropCoordinates = {
     x: Math.min(startX, endX),
     y: Math.min(startY, endY),
     width: Math.abs(endX - startX),
     height: Math.abs(endY - startY),
-    scrollX, 
-    scrollY,
+    scrollX: originalScrollX, 
+    scrollY: originalScrollY,
   };
 
-  // Remove overlay and selection rect IMMEDIATELY
   overlay.remove();
   
-  // Restore original overflow styles
+  // Restore original styles
+  document.body.style.position = originalPosition;
+  document.body.style.top = originalTop;
+  document.body.style.width = originalWidth;
   document.body.style.overflow = originalOverflow;
   document.documentElement.style.overflow = originalHtmlOverflow;
+  
+  // Restore scroll position
+  window.scrollTo(originalScrollX, originalScrollY);
 
-  // CRITICAL: Wait for DOM to update and repaint
   await new Promise(resolve => setTimeout(resolve, 100));
 
   if (cropCoordinates.width < 60 || cropCoordinates.height < 60) {
@@ -154,7 +163,6 @@ export const compare = async (oldUrl, newUrl) => {
   }
 
   try {
-    // Capture AFTER overlay is removed and DOM is repainted
     const { dataUrl } = await sendMessagePromise({ command: "CAPTURE_PAGE" });
     const cropped = await cropImage(dataUrl, cropCoordinates);
     const actObj = { 
