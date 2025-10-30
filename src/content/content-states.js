@@ -22,7 +22,6 @@ const defaultState = {
 export async function getState() {
   return new Promise((resolve) => {
     chrome.storage.local.get([STORAGE_KEY], (result) => {
-      console.log("storage data",result[STORAGE_KEY])
       resolve(result[STORAGE_KEY] || { ...defaultState });
     });
   });
