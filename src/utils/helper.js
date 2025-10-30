@@ -67,7 +67,7 @@ function isNearBottom(startY, endY) {
   const viewportHeight = window.innerHeight;
   const selectedBottom = Math.min(startY, endY) + Math.abs(endY - startY);
   const diffFromBottom = viewportHeight - selectedBottom;
-  return diffFromBottom < 70; // ✅ true if within 70px of viewport bottom
+  return diffFromBottom < 50; // ✅ true if within 70px of viewport bottom
 }
 
  export async function DrawCanvas() {
