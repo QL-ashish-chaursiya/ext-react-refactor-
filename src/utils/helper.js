@@ -29,7 +29,7 @@ export function sendMessagePromise(message) {
 export async function captureAndUpload(rect) {
   try {
     // Step 1: capture screenshot
-    const { dataUrl } = await sendMessagePromise({ command: "CAPTURE_PAGE" });
+    const { dataUrl } = await sendMessagePromise({ command: "CAPTURE_PAGE",isBottom:rect.isBottom });
     if (!dataUrl) throw new Error("No screenshot captured");
 
     // Step 2: crop selected area
@@ -169,7 +169,7 @@ function isNearBottom(startY, endY) {
     return;
   }
  if(isNearBottom(startY, endY)){
-   cropCoordinates.scrollY =  cropCoordinates.scrollY+50
+  cropCoordinates.isBottom = true
 }
   try {
     const { dataUrl } = await sendMessagePromise({ command: "CAPTURE_PAGE" });

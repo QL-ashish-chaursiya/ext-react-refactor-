@@ -371,17 +371,17 @@ async function performAction(action, arr, index) {
          window.scrollTo({
               left: action.rect.scrollX || 0,
               top: action.rect.scrollY || 0,
-              behavior: "auto",
+              behavior: "smooth",
             });
-            await delay(1000)
+             await delay(2000)
             
          const newUrl =  await captureAndUpload(action.rect)
-        
+      
          if (overlay) overlay.style.display = 'block';
           updateStatus("⏳ Comparing Image...");
         const aiRes = await compare(action.image_url,newUrl)
         
-          actionSuccess =  aiRes.status=='pass';
+ actionSuccess =  aiRes.status=='pass';
         resMessage = aiRes.reason; 
         break;
       case "Enter":

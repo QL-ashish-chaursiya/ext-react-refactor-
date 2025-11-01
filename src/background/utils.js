@@ -43,14 +43,31 @@ export  function isInjectableUrl(url) {
       return false;
     }
   }
-  export  function captureTab() {
-      return new Promise((resolve, reject) => {
-        chrome.tabs.captureVisibleTab(null, { format: 'png' }, function(dataUrl) {
-          if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
-          else resolve(dataUrl);
-        });
-      });
-    }
+    export async function  captureTab(tabId,isBottom) {
+      if(isBottom){
+ await new Promise((resolve) => chrome.debugger.detach({ tabId }, resolve));
+   await new Promise((r) => setTimeout(r, 8000));
+      }
+  const dataUrl = await new Promise((resolve, reject) => {
+    chrome.tabs.captureVisibleTab(null, { format: "png" }, (dataUrl) => {
+      if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+      else resolve(dataUrl);
+    });
+  });
+
+  // optionally reattach debugger after
+  if(isBottom){
+ await new Promise((resolve, reject) => {
+    chrome.debugger.attach({ tabId }, "1.3", () => {
+      if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+      else resolve();
+    });
+  });
+  }
+  
+
+  return dataUrl;
+}
   export  async function captureAndUploadScreenshot() {
     
   

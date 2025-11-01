@@ -246,7 +246,7 @@ export function setupMessageListeners() {
                
               case 'CAPTURE_PAGE':
                  
-                 const dataUrl = await captureTab();
+                 const dataUrl = await captureTab(sender.tab.id,message.isBottom);
     return sendResponse({ dataUrl });
     //return true;
            case 'UPLOAD_SCREENSHOT':
