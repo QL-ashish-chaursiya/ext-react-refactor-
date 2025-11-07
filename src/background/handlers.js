@@ -119,7 +119,116 @@ export function setupMessageListeners() {
 
   return true;
 }
+case "pointerdragstart": {
+  const tabId = sender.tab.id ||  getState().attachedTabId;
+  const { x, y } = message;
+  if (getState().isDebuggerAttached && getState().attachedTabId === tabId) {
+    try {
+      // Inject script to disable scrolling
+     await chrome.scripting.executeScript({
+  target: { tabId },
+  func: () => {
+    const styleId = "__no_scroll_style__";
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = `
+        html, body {
+          overflow: hidden !important;
+          height: 100% !important;
+          touch-action: none !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }
+});
 
+
+
+      // Move pointer to start position
+      await chrome.debugger.sendCommand({ tabId }, "Input.dispatchMouseEvent", {
+        type: "mouseMoved",
+        x,
+        y,
+        button: "left",
+        pointerType: "mouse",
+      });
+
+      // Mouse down to begin drag
+      await chrome.debugger.sendCommand({ tabId }, "Input.dispatchMouseEvent", {
+        type: "mousePressed",
+        x,
+        y,
+        button: "left",
+        clickCount: 1,
+        pointerType: "mouse",
+      });
+
+      sendResponse({
+        ok: true,
+        method: "debugger",
+        message: "Drag started via debugger",
+      });
+    } catch (err) {
+      console.error("Trusted dragstart failed:", err);
+      sendResponse({ ok: false, error: err.message });
+    }
+  } else {
+    sendResponse({ ok: false, error: "Debugger not attached" });
+  }
+  return true;
+}
+
+ 
+ 
+
+case "pointerdrop": {
+  const tabId = sender.tab.id || getState().attachedTabId;;
+  const { x, y } = message;
+  if ( getState().isDebuggerAttached && getState().attachedTabId ===  tabId) {
+    try {
+      // Move to drop position
+      await chrome.debugger.sendCommand({ tabId }, "Input.dispatchMouseEvent", {
+        type: "mouseMoved",
+        x,
+        y,
+        buttons: 1,
+        pointerType: "mouse",
+      });
+
+      // Mouse up to drop
+      await chrome.debugger.sendCommand({ tabId }, "Input.dispatchMouseEvent", {
+        type: "mouseReleased",
+        x,
+        y,
+        button: "left",
+        clickCount: 1,
+        pointerType: "mouse",
+      });
+
+      // Re-enable scrolling
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => {
+          document.body.classList.remove('no-scroll');
+        }
+      });
+
+      sendResponse({
+        ok: true,
+        method: "debugger",
+        message: "Drag dropped successfully",
+      });
+    } catch (err) {
+      console.error("Trusted drop failed:", err);
+      sendResponse({ ok: false, error: err.message });
+    }
+  } else {
+    sendResponse({ ok: false, error: "Debugger not attached" });
+  }
+  return true;
+}
                 case 'trustedHover':
                   const tabIdHover = sender.tab.id || getState().attachedTabId;
                   if (getState().isDebuggerAttached && getState().attachedTabId === tabIdHover) {

@@ -301,7 +301,12 @@ async function performAction(action, arr, index) {
     pointer.style.top = `${window.scrollY + rect.top + 20}px`;
     pointer.style.left = `${window.scrollX + rect.left + 50}px`;
   }
-
+ function movePointerDrag(x, y) {
+    const pointer = document.getElementById('__playback_pointer__');
+    if (!pointer) return;
+    pointer.style.top = `${window.scrollY + y}px`;
+    pointer.style.left = `${window.scrollX + x}px`;
+  }
   updateStatus("⏳ Waiting for Network...");
   await waitForNetworkIdlePolling();
   updateStatus("🚀 Running test playback...");
@@ -320,7 +325,12 @@ async function performAction(action, arr, index) {
     }
     element = locatedElement;
     element.scrollIntoView({ behavior: "smooth", block: "center" });
-    movePointerToElement(element);
+    if(action.type=='dragstart' || action.type=='dragend'){
+       movePointerDrag(action.clientX || element.getBoundingClientRect().left, action.clientY || element.getBoundingClientRect().top);
+    }else{
+ movePointerToElement(element);
+    }
+    
     await delay(500);
   }
 
@@ -364,6 +374,32 @@ async function performAction(action, arr, index) {
           assertions: [],
         };
       }
+            case 'dragstart': {
+  const el = await waitForElementByXPath(action.element?.xpath, 1000);
+  const rect = el.getBoundingClientRect();
+  const clientX = Math.floor(rect.left + (action.offsetX || rect.width / 2));
+  const clientY = Math.floor(rect.top + (action.offsetY || rect.height / 2));
+  const safeY = Math.min(clientY, window.innerHeight - 10);
+
+  await sendMessageAsync({ command: "pointerdragstart", x: clientX, y:  safeY });
+  actionSuccess = true;
+  resMessage = "Drag started";
+  break;
+}
+
+       
+
+       case 'dragend': {
+  const el = await waitForElementByXPath(action.element?.xpath, 1000);
+  const rect = el.getBoundingClientRect();
+  const clientX = Math.floor(rect.left + (action.offsetX || rect.width / 2));
+  const clientY = Math.floor(rect.top + (action.offsetY || rect.height / 2));
+     const safeY = Math.min(clientY, window.innerHeight - 10);
+  await sendMessageAsync({ command: "pointerdrop", x: clientX, y: safeY  });
+  actionSuccess = true;
+  resMessage = "Drag completed";
+  break;
+}
       case 'compareImage':
          
          const overlay = document.getElementById('__playback_status_overlay__');

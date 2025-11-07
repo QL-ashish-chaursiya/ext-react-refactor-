@@ -1,4 +1,4 @@
-// src/content/handlers.js
+  // src/content/handlers.js
 import { getElementInfo, generateXPaths } from "./xpath.js";
 import { getState, setState, addHoverElement } from "./content-states.js";
 import { IMPORTANT_KEYS } from "../utils/constant.js";
@@ -15,6 +15,9 @@ let scrollStartSnapshot = null;
 let scrollStartY = 0;
 let startX, startY, endX, endY;
 let selectionBox
+ let draggedElement = null; // Track dragged element
+  let isDragging = false; // Track dragging state
+  let dragOffset = { x: 0, y: 0 };
 export function attachAllListeners() {
   document.addEventListener("mouseover", handleHoverIn, true);
   document.addEventListener("mouseout", handleHoverOut, true);
@@ -28,9 +31,11 @@ export function attachAllListeners() {
   });
   document.addEventListener("mousedown", handleMouseDown, {
     capture: true,
-    passive: true,
+    passive:   true,
   });
-  
+  document.addEventListener('pointerdown', handlePointerDown, { capture: true, passive: false });
+ 
+    document.addEventListener('pointerup', handlePointerUp, { capture: true, passive: false });
     
   document.addEventListener("keydown", handleKeydown, {
     capture: true,
@@ -41,13 +46,114 @@ export function attachAllListeners() {
     capture: true,
   });
 }
+ 
+  export function detectRealDrag(targetEl, timeout = 1500) {
+  return new Promise(resolve => {
+    if (!targetEl || targetEl.nodeType !== 1) {
+      return resolve(false);
+    }
 
+    // IGNORE IMG / A / P
+    const tag = targetEl.tagName.toLowerCase();
+    if (["img", "a", "p"].includes(tag)) {
+      return resolve(false);
+    }
+
+    // IGNORE extension UI
+    if (targetEl.closest('[data-recorder-ui="true"]')) {
+      return resolve(false);
+    }
+
+    const startRect = targetEl.getBoundingClientRect();
+    let moved = false;
+
+    function onMove() {
+      const rect = targetEl.getBoundingClientRect();
+      if (rect.x !== startRect.x || rect.y !== startRect.y) {
+        moved = true;
+        cleanup();
+        resolve(true);
+      }
+    }
+
+    function onEnd() {
+      cleanup();
+      resolve(moved);
+    }
+
+    function cleanup() {
+      document.removeEventListener("pointermove", onMove, true);
+      document.removeEventListener("pointerup", onEnd, true);
+      document.removeEventListener("pointercancel", onEnd, true);
+    }
+
+    document.addEventListener("pointermove", onMove, true);
+    document.addEventListener("pointerup", onEnd, true);
+    document.addEventListener("pointercancel", onEnd, true);
+
+    setTimeout(() => {
+      cleanup();
+      resolve(moved);
+    }, timeout);
+  });
+}
+  export async function handlePointerDown(e) {
+  const el = e.target;
+
+  const isDrag = await  detectRealDrag(e.target);
+
+  if (!isDrag) return; // Not a drag
+isDragging = true
+draggedElement = el
+  // ✅ Real drag detected
+  const info = getElementInfo(el);
+  sendAction({
+    type: "dragstart",
+    element: info,
+    clientX:   e.clientX,
+    clientY:   e.clientY,
+    description: `Drag started`
+  });
+}
+async function handlePointerUp(event) {
+   const state = await getState();
+  if (!state.recording || state.hoverModeActive || state.compareImg || !isDragging || !draggedElement) return;
+  event.preventDefault();
+  
+  const clientX = event.clientX ?? (event.touches?.[0]?.clientX);
+  const clientY = event.clientY ?? (event.touches?.[0]?.clientY);
+  const sourceInfo = getElementInfo(draggedElement);
+  
+  
+  const target =   document.body;
+  const targetInfo = getElementInfo(target);
+  
+  const rect = target.getBoundingClientRect();
+  const offsetX = clientX - rect.left;
+  const offsetY = clientY - rect.top;
+
+  const action = {
+    type: 'dragend',
+    element: targetInfo,
+    sourceElement: sourceInfo,
+    clientX, clientY,
+    offsetX, offsetY,
+    
+    description: `Drag ended: ${sourceInfo.tagName} → ${targetInfo.tagName}`
+  };
+  sendAction(action, 'dragend');
+
+  // Reset
+  draggedElement = null;
+  isDragging = false;
+}
 export function removeAllListeners() {
   document.removeEventListener("input", handleInput, true);
   document.removeEventListener("change", handleChange, true);
   document.removeEventListener("mousedown", handleMouseDown, true);
   
-   
+     document.removeEventListener('pointerdown', handlePointerDown, true);
+    document.removeEventListener('pointerup', handlePointerUp, true);
   document.removeEventListener("mouseover", handleHoverIn, true);
   document.removeEventListener("mouseout", handleHoverOut, true);
   document.removeEventListener("scroll", handleScroll, true); // ✅ Changed
@@ -238,7 +344,7 @@ function hasMoreThanOneNonAlphabet(str) {
 export async function handleMouseDown(event) {
   const state = await getState();
 
-  if (!state.recording || !isRuntimeAvailable() || state.hoverModeActive || state.compareImg){
+  if (!state.recording || !isRuntimeAvailable() || state.hoverModeActive || state.compareImg || isDragging){
     return
   }
   console.log("call");
