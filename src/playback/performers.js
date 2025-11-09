@@ -324,14 +324,14 @@ async function performAction(action, arr, index) {
       };
     }
     element = locatedElement;
-    element.scrollIntoView({ behavior: "smooth", block: "center" });
+    element.scrollIntoView({ behavior: "auto", block: "center" });
     if(action.type=='dragstart' || action.type=='dragend'){
        movePointerDrag(action.clientX || element.getBoundingClientRect().left, action.clientY || element.getBoundingClientRect().top);
     }else{
  movePointerToElement(element);
     }
     
-    await delay(500);
+    await delay(1000);
   }
 
   let actionSuccess = false;

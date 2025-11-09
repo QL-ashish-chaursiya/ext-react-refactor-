@@ -15,6 +15,7 @@ let scrollStartSnapshot = null;
 let scrollStartY = 0;
 let startX, startY, endX, endY;
 let selectionBox
+let pendingClickTimeout = null;
  let draggedElement = null; // Track dragged element
   let isDragging = false; // Track dragging state
   let dragOffset = { x: 0, y: 0 };
@@ -29,10 +30,7 @@ export function attachAllListeners() {
     capture: true,
     passive: true,
   });
-  document.addEventListener("mousedown", handleMouseDown, {
-    capture: true,
-    passive:   true,
-  });
+  
   document.addEventListener('pointerdown', handlePointerDown, { capture: true, passive: false });
  
     document.addEventListener('pointerup', handlePointerUp, { capture: true, passive: false });
@@ -47,7 +45,7 @@ export function attachAllListeners() {
   });
 }
  
-  export function detectRealDrag(targetEl, timeout = 1500) {
+  export function detectRealDrag(targetEl, timeout = 200) {
   return new Promise(resolve => {
     if (!targetEl || targetEl.nodeType !== 1) {
       return resolve(false);
@@ -97,23 +95,88 @@ export function attachAllListeners() {
     }, timeout);
   });
 }
-  export async function handlePointerDown(e) {
+    
+
+export async function handlePointerDown(e) {
+  const state = await getState();
+  
+  // Skip if not recording or in special modes
+  if (!state.recording || !isRuntimeAvailable() || state.hoverModeActive || state.compareImg) {
+    return;
+  }
+  
+  // Skip recorder UI
+  if (e.target.closest('[data-recorder-ui="true"]')) return;
+  
   const el = e.target;
+  
+  // Store click info immediately
+  const clickInfo = {
+    target: el,
+    clientX: e.clientX,
+    clientY: e.clientY,
+  };
+  
+  // Clear any pending click
+  if (pendingClickTimeout) {
+    clearTimeout(pendingClickTimeout);
+    pendingClickTimeout = null;
+  }
+  
+  // Check if this is a real drag (wait up to 200ms instead of 1500ms for better UX)
+  const isDrag = await detectRealDrag(el, 200);
+  
+  if (isDrag) {
+    // ✅ Handle as DRAG
+    console.log('🎯 Drag detected');
+    isDragging = true;
+    draggedElement = el;
+    
+    const info = getElementInfo(el);
+    sendAction({
+      type: "dragstart",
+      element: info,
+      clientX: e.clientX,
+      clientY: e.clientY,
+      description: `Drag started`
+    }, el);
+  } else {
+    // ✅ Handle as CLICK
+    console.log('🎯 Click detected');
+    handleClickFromPointer(clickInfo);
+  }
+}
 
-  const isDrag = await  detectRealDrag(e.target);
+// New function to handle click detection
+function handleClickFromPointer(clickInfo) {
+  const { target, clientX, clientY } = clickInfo;
+  
+  const rect = target.getBoundingClientRect();
+  const offsetX = clientX - rect.left;
+  const offsetY = clientY - rect.top;
+  const elementInfo = getElementInfo(target);
 
-  if (!isDrag) return; // Not a drag
-isDragging = true
-draggedElement = el
-  // ✅ Real drag detected
-  const info = getElementInfo(el);
-  sendAction({
-    type: "dragstart",
-    element: info,
-    clientX:   e.clientX,
-    clientY:   e.clientY,
-    description: `Drag started`
-  });
+  const action = {
+    type: "mousedown", // or "mousedown" if you prefer
+    element: elementInfo,
+    offsetX,
+    offsetY,
+    description: `Click on ${
+      elementInfo.name
+        ? elementInfo.name
+        : hasMoreThanOneNonAlphabet(elementInfo.id)
+        ? `#${elementInfo.tagName.toLowerCase()}`
+        : elementInfo.id
+    }`,
+  };
+
+  setTimeout(() => {
+    if (tempValue?.value) {
+      sendAction(tempValue, target);
+      tempValue = null;
+    }
+    sendAction(action, target);
+  }, 0);
 }
 async function handlePointerUp(event) {
    const state = await getState();
@@ -150,7 +213,7 @@ async function handlePointerUp(event) {
 export function removeAllListeners() {
   document.removeEventListener("input", handleInput, true);
   document.removeEventListener("change", handleChange, true);
-  document.removeEventListener("mousedown", handleMouseDown, true);
+  
   
      document.removeEventListener('pointerdown', handlePointerDown, true);
     document.removeEventListener('pointerup', handlePointerUp, true);
