@@ -412,13 +412,12 @@ async function performAction(action, arr, index) {
              await delay(2000)
             
          const newUrl =  await captureAndUpload(action.rect)
-      
+         
          if (overlay) overlay.style.display = 'block';
           updateStatus("⏳ Comparing Image...");
         const aiRes = await compare(action.image_url,newUrl)
-        
- actionSuccess =  aiRes.status=='pass';
-        resMessage = aiRes.reason; 
+        actionSuccess =  aiRes.status=='pass' ;
+        resMessage = aiRes.summary || aiRes.error; 
         break;
       case "Enter":
       case "Tab":
