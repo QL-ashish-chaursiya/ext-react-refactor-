@@ -331,7 +331,7 @@ async function performAction(action, arr, index) {
  movePointerToElement(element);
     }
     
-    await delay(1000);
+    await delay(700);
   }
 
   let actionSuccess = false;

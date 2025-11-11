@@ -9,6 +9,8 @@ let searchableDropdownTimeout = null;
 let scrollDebounceTimer = null;
 let lastRecordedScrollY = 0;
 let lastDOMSnapshot = null;
+let pendingInputAction = null;
+
 let scrollTimeout = null;
 let isScrolling = false;
 let scrollStartSnapshot = null;
@@ -26,10 +28,7 @@ export function attachAllListeners() {
     capture: true,
     passive: true,
   });
-  document.addEventListener("change", handleChange, {
-    capture: true,
-    passive: true,
-  });
+  
   
   document.addEventListener('pointerdown', handlePointerDown, { capture: true, passive: false });
  
@@ -125,7 +124,11 @@ export async function handlePointerDown(e) {
   
   // Check if this is a real drag (wait up to 200ms instead of 1500ms for better UX)
   const isDrag = await detectRealDrag(el, 200);
-  
+  if (pendingInputAction) {
+  sendAction(pendingInputAction, e.target);
+  pendingInputAction = null;
+}
+
   if (isDrag) {
     // ✅ Handle as DRAG
     console.log('🎯 Drag detected');
@@ -212,7 +215,7 @@ async function handlePointerUp(event) {
 }
 export function removeAllListeners() {
   document.removeEventListener("input", handleInput, true);
-  document.removeEventListener("change", handleChange, true);
+  
   
   
      document.removeEventListener('pointerdown', handlePointerDown, true);
@@ -442,13 +445,21 @@ export async function handleMouseDown(event) {
 }
 
 function isPartOfOtpGroup(input) {
-  const parent = input.parentElement;
-  if (!parent) return false;
-  const inputs = Array.from(parent.querySelectorAll("input"));
-  if (inputs.length < 4 || inputs.length > 6) return false;
-  return inputs.every(
-    (inp) => inp.maxLength === 1 || inp.getAttribute("maxlength") === "1"
-  );
+   if (!input) return false;
+
+  // Normalize to lower-case type
+  const t = (input.type || "").toLowerCase();
+
+  // Skip irrelevant input types
+  if (["hidden","checkbox","radio","file","button","submit","reset","image","range","color"].includes(t))
+    return false;
+
+  // Prefer property maxLength
+  if (typeof input.maxLength === "number" && input.maxLength === 1) return true;
+
+  // Fallback: attribute check
+  const ml = input.getAttribute("maxlength");
+  return ml === "1";
 }
  
  
@@ -502,58 +513,99 @@ export async function handleChange(event) {
   sendAction(action, target);
 }
 
-export async function handleInput(event) {
+  export async function handleInput(event) {
   const state = await getState();
-  if (!state.recording || !isRuntimeAvailable() || state.hoverModeActive)
-    return;
+  if (!state.recording || !isRuntimeAvailable() || state.hoverModeActive) return;
   if (event.target.closest('[data-recorder-ui="true"]')) return;
 
   const target = event.target;
-  if (target.type === "file") return;
-  const elementInfo = getElementInfo(target);
+  if (!target) return;
 
-  if (
-    target.isContentEditable ||
-    target.getAttribute("contenteditable") === "true"
-  ) {
-    const value = target.textContent;
-    clearTimeout(searchableDropdownTimeout);
-    searchableDropdownTimeout = setTimeout(() => {
-      const action = {
-        type: "change",
-        element: elementInfo,
-        value,
-        description: `Enter "${value}" `,
-      };
-      sendAction(action, target);
-    }, 500);
+  // ✅ File upload handling (added)
+  if (target.tagName === "INPUT" && target.type === "file") {
+    const elementInfo = getElementInfo(target);
+    const file = target.files[0];
+    if (!file) return;
+
+    const uniqueId = `${
+      elementInfo.xpath?.[0] || elementInfo.id || elementInfo.tagName
+    }-${Date.now()}`;
+
+    const newAction = {
+      type: "fileSelect",
+      element: elementInfo,
+      value: file.name,
+      filePath: file.name,
+      fileStorageKey: `file_${uniqueId}`,
+      url: window.location.href,
+      description: `Select file "${file.name}" in ${
+        elementInfo.id || elementInfo.tagName.toLowerCase()
+      }`,
+    };
+
+    storeFileData(file, uniqueId)
+      .then((data) => {
+        newAction.storageData = data;
+        sendAction(newAction, target);
+      })
+      .catch(() => {});
+
     return;
   }
 
-  tempValue = {
-    type: "change",
-    element: elementInfo,
-    value: target.value,
-    description: `Type "${target.value}" `,
-  };
-  if (target.tagName !== "INPUT" || target.type === "file") return;
-  const autocomplete = target.getAttribute("autocomplete");
-  const isAutoCompleteInput =
-    autocomplete && autocomplete.toLowerCase() === "off";
-  const isOtp = isPartOfOtpGroup(target);
-  if (isOtp || !isAutoCompleteInput) return;
-  clearTimeout(searchableDropdownTimeout);
-  searchableDropdownTimeout = setTimeout(() => {
-    const action = {
+  // ✅ Handle contenteditable
+  if (
+    target.isContentEditable ||
+    target.getAttribute?.("contenteditable") === "true"
+  ) {
+    const value = target.textContent || "";
+    console.log("value testing",value)
+      const elementInfo = getElementInfo(target);
+
+      pendingInputAction = {
+        type: "change",
+        element: elementInfo,
+        value,
+        description: `Enter "${value}"`,
+      };
+
+     
+
+    return;
+  }
+
+  const elementInfo = getElementInfo(target);
+  const value = target.value;
+
+  // ✅ Simple OTP detection (maxlength = 1)
+  const isOtp =
+    (typeof target.maxLength === "number" && target.maxLength === 1) ||
+    target.getAttribute("maxlength") === "1";
+
+  // ✅ OTP → send immediately
+  if (isOtp) {
+    const otpAction = {
       type: "change",
       element: elementInfo,
-      value: target.value,
-      description: `Enter "${target.value}" `,
+      value,
+      description: `Enter OTP digit "${value}"`,
     };
-    sendAction(action, target);
-    tempValue = null;
-  }, 500);
+
+    sendAction(otpAction, target);
+    return;
+  }
+
+  // ✅ Normal input → store pending
+  pendingInputAction = {
+    type: "change",
+    element: elementInfo,
+    value,
+    description: `Enter "${value}"`,
+  };
 }
+
+
+
 function getDOMSnapshot() {
   return {
     elementCount: document.body.getElementsByTagName("*").length,
@@ -695,6 +747,10 @@ export async function handleKeydown(event) {
   if (target.closest('[data-recorder-ui="true"]')) return;
 
   // const elementInfo = getElementInfo(target);
+if (pendingInputAction) {
+  sendAction(pendingInputAction, target);
+  pendingInputAction = null;
+}
 
   const action = {
     type: key,
