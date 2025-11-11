@@ -1,26 +1,18 @@
   // src/content/handlers.js
 import { getElementInfo, generateXPaths } from "./xpath.js";
-import { getState, setState, addHoverElement } from "./content-states.js";
+import { getState, setState } from "./content-states.js";
 import { IMPORTANT_KEYS } from "../utils/constant.js";
-import { captureAndUpload, cropImage } from "../utils/helper.js";
 
-let tempValue = null;
-let searchableDropdownTimeout = null;
-let scrollDebounceTimer = null;
 let lastRecordedScrollY = 0;
-let lastDOMSnapshot = null;
 let pendingInputAction = null;
 
 let scrollTimeout = null;
 let isScrolling = false;
 let scrollStartSnapshot = null;
-let scrollStartY = 0;
-let startX, startY, endX, endY;
-let selectionBox
 let pendingClickTimeout = null;
  let draggedElement = null; // Track dragged element
   let isDragging = false; // Track dragging state
-  let dragOffset = { x: 0, y: 0 };
+  
 export function attachAllListeners() {
   document.addEventListener("mouseover", handleHoverIn, true);
   document.addEventListener("mouseout", handleHoverOut, true);
@@ -172,14 +164,7 @@ function handleClickFromPointer(clickInfo) {
         : elementInfo.id
     }`,
   };
-
-  setTimeout(() => {
-    if (tempValue?.value) {
-      sendAction(tempValue, target);
-      tempValue = null;
-    }
-    sendAction(action, target);
-  }, 0);
+sendAction(action, target);
 }
 async function handlePointerUp(event) {
    const state = await getState();
@@ -407,111 +392,12 @@ function hasMoreThanOneNonAlphabet(str) {
   return nonAlphaMatches && nonAlphaMatches.length > 1;
 }
 
-export async function handleMouseDown(event) {
-  const state = await getState();
+ 
 
-  if (!state.recording || !isRuntimeAvailable() || state.hoverModeActive || state.compareImg || isDragging){
-    return
-  }
-  console.log("call");
-  if (event.target.closest('[data-recorder-ui="true"]')) return;
-  const target = event.target;
-  const rect = target.getBoundingClientRect();
-  const offsetX = event.clientX - rect.left;
-  const offsetY = event.clientY - rect.top;
-  const elementInfo = getElementInfo(target);
-
-  const action = {
-    type: "mousedown",
-    element: elementInfo,
-    offsetX,
-    offsetY,
-    description: `Click on ${
-      elementInfo.name
-        ? elementInfo.name
-        : hasMoreThanOneNonAlphabet(elementInfo.id)
-        ? `#${elementInfo.tagName.toLowerCase()}`
-        : elementInfo.id
-    }`,
-  };
-
-  setTimeout(() => {
-    if (tempValue?.value) {
-      sendAction(tempValue, target);
-      tempValue = null;
-    }
-    sendAction(action, target);
-  }, 0);
-}
-
-function isPartOfOtpGroup(input) {
-   if (!input) return false;
-
-  // Normalize to lower-case type
-  const t = (input.type || "").toLowerCase();
-
-  // Skip irrelevant input types
-  if (["hidden","checkbox","radio","file","button","submit","reset","image","range","color"].includes(t))
-    return false;
-
-  // Prefer property maxLength
-  if (typeof input.maxLength === "number" && input.maxLength === 1) return true;
-
-  // Fallback: attribute check
-  const ml = input.getAttribute("maxlength");
-  return ml === "1";
-}
  
  
-export async function handleChange(event) {
-  const state = await getState();
-  if (!state.recording || !isRuntimeAvailable() || state.hoverModeActive)
-    return;
-  if (event.target.closest('[data-recorder-ui="true"]')) return;
-
-  const target = event.target;
-  const autocomplete = target.getAttribute("autocomplete");
-  const isAutoCompleteInput =
-    autocomplete && autocomplete.toLowerCase() === "off";
-  const isOtp = isPartOfOtpGroup(target);
-  if (isAutoCompleteInput && !isOtp) return;
-  const elementInfo = getElementInfo(target);
-
-  if (target.tagName === "INPUT" && target.type === "file") {
-    const file = target.files[0];
-    if (!file) return;
-    const uniqueId = `${
-      elementInfo.xpath[0] || elementInfo.id || elementInfo.tagName
-    }-${Date.now()}`;
-    const newAction = {
-      type: "fileSelect",
-      element: elementInfo,
-      value: file.name,
-      filePath: file.name,
-      fileStorageKey: `file_${uniqueId}`,
-      url: window.location.href,
-      description: `Select file "${file.name}" in ${
-        elementInfo.id || elementInfo.tagName.toLowerCase()
-      }`,
-    };
-    storeFileData(file, uniqueId)
-      .then((data) => {
-        newAction.storageData = data;
-        sendAction(newAction, target);
-      })
-      .catch(() => {});
-    return;
-  }
-
-  const action = {
-    type: "change",
-    element: elementInfo,
-    value: target.value,
-    description: `Enter "${target.value}" `,
-  };
-  tempValue = null;
-  sendAction(action, target);
-}
+ 
+ 
 
   export async function handleInput(event) {
   const state = await getState();

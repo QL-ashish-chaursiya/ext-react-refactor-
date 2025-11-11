@@ -1,4 +1,4 @@
-import { handleChange, handleInput, handleMouseDown } from "../content/handlers";
+import {  handleInput, handlePointerDown } from "../content/handlers";
 
 (() => {
      const isNotIframe = window.top == window.self;
@@ -28,8 +28,7 @@ import { handleChange, handleInput, handleMouseDown } from "../content/handlers"
     }
 
     document.addEventListener("input", handleInput, { capture: true, passive: true });
-    document.addEventListener("change", handleChange, { capture: true, passive: true });
-    document.addEventListener("mousedown", handleMouseDown, { capture: true, passive: true });
+      document.addEventListener('pointerdown', handlePointerDown, { capture: true, passive: false });
 
     window.__LISTENERS_ATTACHED__ = true;
     console.log("✅ [Listener] Event listeners attached.");
