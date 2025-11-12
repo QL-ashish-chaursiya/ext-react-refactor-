@@ -20,6 +20,8 @@ export async function updateBtnUI() {
 
   if (!state.recording) {
     startPauseBtn.textContent = 'Start Recording';
+     startPauseBtn.disabled = true;
+     startPauseBtn.classList.add('disabled');
     addHoverBtn.disabled = true;
     addHoverBtn.classList.add('disabled');
     compareImgBtn.disabled = true
