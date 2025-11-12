@@ -3,6 +3,7 @@ import { attachAllListeners, handleClick, removeAllListeners, sendAction } from 
 import { getState, setState, subscribe } from './content-states.js';
 import { HOVERUI, WRAPPER_CSS } from './ui.css.js';
 import {  DrawCanvas, sendMessagePromise } from '../utils/helper.js';
+import { pendingInputAction } from './handlers.js';
 
 let shadowRoot = null;
 let shadowHost = null;
@@ -242,7 +243,9 @@ export async function setupUI() {
     stopBtn.disabled = true;
     stopBtn.classList.add('disabled');
     stopBtn.textContent = 'Saving...';
-
+    if(pendingInputAction){
+      sendAction(pendingInputAction)
+    }
     await setState({ recording: false, isPaused: false });
     removeAllListeners();
     updateBtnUI();

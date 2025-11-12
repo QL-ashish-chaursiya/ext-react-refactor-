@@ -4,7 +4,8 @@ import { getState, setState } from "./content-states.js";
 import { IMPORTANT_KEYS } from "../utils/constant.js";
 
 let lastRecordedScrollY = 0;
-let pendingInputAction = null;
+export let pendingInputAction = null;
+
 
 let scrollTimeout = null;
 let isScrolling = false;
