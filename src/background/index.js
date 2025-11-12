@@ -177,27 +177,29 @@ chrome.tabs.onCreated.addListener(async (tab) => {
 });
 
 chrome.windows.onRemoved.addListener(async (windowId) => {
-  if (windowId === getState().recordingWindowId) {
-    if (getState().activePort) {
-      getState().activePort.disconnect();
-      setState({activePort:null})
-    }
-    
-  } else if (windowId === getState().playbackWindowId) {
-    if (getState().isDebuggerAttached && getState().attachedTabId) {
+  if (getState().recordingWindowId || getState().playbackWindowId) {
+     const tabs = await chrome.tabs.query({});
+    const reactAppTab = tabs.find(
+      (tab) =>
+        tab.url &&
+        initialState.allowedHosts.some((host) => tab.url.includes(host))
+    );
+
+    if (reactAppTab) {
       try {
-        await new Promise((resolve) => {
-          chrome.debugger.detach({ tabId: getState().attachedTabId }, resolve);
+        await chrome.scripting.executeScript({
+          target: { tabId: reactAppTab.id },
+          func: () => {
+            window.postMessage({ type: "browserClosed" }, "*");
+          },
         });
-    
-      } catch (e) {
-        console.warn('Failed to detach debugger:', e);
+        console.log("✅ React app notified of moduleTestComplete");
+      } catch (err) {
+        console.warn("Failed to inject notification script:", err);
       }
-     
-      setState({ currentPlayTab: null, tabOrder: null,isDebuggerAttached: false, attachedTabId: null })
-       
     }
-  }
+    
+  }  
   await chrome.storage.local.clear();
   setState(initialState);
  

@@ -1,6 +1,6 @@
 //background.recording.js
 import { supabaseClient } from './supabase.js';
-import { getState, setState, state } from './states.js';
+import { getState, initialState, setState, state } from './states.js';
 import { NAVIGATE_TYPES } from '../utils/constant.js';
 import { getCurrentActiveTabOrder } from './utils.js';
 
@@ -23,7 +23,7 @@ export async function stopRecording() {
 
     try {
       await chrome.windows.remove(getState().recordingWindowId);
-     setState(state)
+     setState(initialState)
     } catch (e) {
       console.warn('Window already closed or failed:', e);
     }
