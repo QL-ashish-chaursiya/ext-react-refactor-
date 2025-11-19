@@ -1,316 +1,325 @@
+// utils.js (FULLY UPDATED)
+// --------------------------------------------------------
+
+import { getState, setState } from "./states.js";
+import { supabaseClient } from "./supabase.js";
+import webext from "webextension-polyfill";
+export function isInjectableUrl(url) {
+  if (!url) return false;
+  return (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("file://")
+  );
+}
+
  
-import { getState, setState } from './states.js';
-import { supabaseClient } from './supabase.js';
-export  function isInjectableUrl(url) {
-    if (!url) return false;
-    return (
-      url.startsWith("http://") ||
-      url.startsWith("https://") ||
-      url.startsWith("file://")
-    );
-  }
-  
-  export  async function injectContentScriptSafely(tabId,fileName) {
-    try {
-      // First check if tab still exists and is valid
-      const tab = await chrome.tabs.get(tabId);
-      if (!tab || !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
-        console.warn('Cannot inject into chrome:// or extension URLs');
-        return false;
-      }
-      
-      await chrome.scripting.executeScript({
-        target: { tabId },
-        files: [fileName]
-      });
-       
-       if(fileName=='content.bundle.js'){
-      setTimeout( () => {
-     chrome.scripting.executeScript({
-        target: { tabId , allFrames:true},
-        files: ["iframeContent.bundle.js"]
-      });
-      },2000)
-      }
-       
-      
-      // Wait a bit for script to initialize
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      return true;
-    } catch (error) {
-      console.warn('Script injection failed:', error);
+export async function injectContentScriptSafely(tabId, fileName) {
+  try {
+    const tab = await webext.tabs.get(tabId);
+
+    if (
+      !tab ||
+      !tab.url ||
+      tab.url.startsWith("chrome://") ||
+      tab.url.startsWith("chrome-extension://")
+    ) {
+      console.warn("Cannot inject into browser:// or extension URLs");
       return false;
     }
-  }
-    export async function  captureTab(tabId,isBottom) {
-      if(isBottom){
- await new Promise((resolve) => chrome.debugger.detach({ tabId }, resolve));
-   await new Promise((r) => setTimeout(r, 8000));
-      }
-  const dataUrl = await new Promise((resolve, reject) => {
-    chrome.tabs.captureVisibleTab(null, { format: "png" }, (dataUrl) => {
-      if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
-      else resolve(dataUrl);
-    });
-  });
 
-  // optionally reattach debugger after
-  if(isBottom){
- await new Promise((resolve, reject) => {
-    chrome.debugger.attach({ tabId }, "1.3", () => {
-      if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
-      else resolve();
+    await webext.scripting.executeScript({
+      target: { tabId },
+      files: [fileName],
     });
-  });
+
+    // Inject iframe script for content.bundle.js
+    if (fileName === "content.bundle.js") {
+      setTimeout(() => {
+        webext.scripting.executeScript({
+          target: { tabId, allFrames: true },
+          files: ["iframeContent.bundle.js"],
+        });
+      }, 2000);
+    }
+
+    // slight delay
+    await new Promise((r) => setTimeout(r, 100));
+
+    return true;
+  } catch (err) {
+    console.warn("Script injection failed:", err);
+    return false;
   }
-  
+}
+ 
+export async function captureTab(tabId, isBottom) {
+  if (isBottom) {
+    try {
+      await webext.debugger.detach({ tabId });
+    } catch (_) {}
+    await new Promise((r) => setTimeout(r, 8000));
+  }
+
+  const dataUrl = await webext.tabs.captureVisibleTab(null, { format: "png" });
+
+  if (isBottom) {
+    try {
+      await webext.debugger.attach({ tabId }, "1.3");
+    } catch (err) {
+      console.warn("Re-attach failed:", err);
+    }
+  }
 
   return dataUrl;
 }
-  export  async function captureAndUploadScreenshot() {
-    
-  
-    function b64toBlob(b64Data, contentType = '', sliceSize = 512) {
-      const byteCharacters = atob(b64Data);
-      const byteArrays = [];
-      for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
-        const slice = byteCharacters.slice(offset, offset + sliceSize);
-        const byteNumbers = new Array(slice.length);
-        for (let i = 0; i < slice.length; i++) {
-          byteNumbers[i] = slice.charCodeAt(i);
-        }
-        byteArrays.push(new Uint8Array(byteNumbers));
+
+ 
+
+export async function captureAndUploadScreenshot() {
+  function b64toBlob(b64Data, contentType = "", sliceSize = 512) {
+    const byteCharacters = atob(b64Data);
+    const byteArrays = [];
+
+    for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+      const slice = byteCharacters.slice(offset, offset + sliceSize);
+      const byteNumbers = new Array(slice.length);
+
+      for (let i = 0; i < slice.length; i++) {
+        byteNumbers[i] = slice.charCodeAt(i);
       }
-      return new Blob(byteArrays, { type: contentType });
+
+      byteArrays.push(new Uint8Array(byteNumbers));
     }
-  
-    try {
-      const dataUrl = await captureTab();
-      const base64Data = dataUrl.split(',')[1];
-      const imageBlob = b64toBlob(base64Data, 'image/png');
-      const imageName = `screenshot_${Date.now()}.png`;
-  
-      const { error: uploadError } = await supabaseClient.storage
-        .from('screenshots')
-        .upload(imageName, imageBlob, { cacheControl: '3600', upsert: false });
-  
-      if (uploadError) {
-        console.error('Supabase upload error:', uploadError);
-        return null;
-      }
-  
-      const { data: publicUrlObj } = supabaseClient.storage
-        .from('screenshots')
-        .getPublicUrl(imageName);
-  
-      return publicUrlObj ? publicUrlObj.publicUrl : null;
-    } catch (err) {
-      console.error('Error capturing/uploading screenshot:', err);
+
+    return new Blob(byteArrays, { type: contentType });
+  }
+
+  try {
+    const dataUrl = await captureTab();
+    const base64Data = dataUrl.split(",")[1];
+
+    const imageBlob = b64toBlob(base64Data, "image/png");
+    const imageName = `screenshot_${Date.now()}.png`;
+
+    const { error: uploadError } = await supabaseClient.storage
+      .from("screenshots")
+      .upload(imageName, imageBlob, { cacheControl: "3600", upsert: false });
+
+    if (uploadError) {
+      console.error("Supabase upload error:", uploadError);
       return null;
     }
-  }
-  
- 
- 
-export  async function attachDebuggerToTab(tabId, retries = 5, delayMs = 1000) {
-  if (getState().isDebuggerAttached && getState().attachedTabId === tabId) {
-      console.log(`Debugger already attached to tab ${tabId}, skipping re-attach.`);
-      return true;
-    }
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        // Step 1: Validate tab and targets
-        const currentTab = await chrome.tabs.get(tabId);
-        if (!currentTab || !isInjectableUrl(currentTab.url)) {
-          console.warn(`Cannot attach to invalid tab (URL: ${currentTab?.url || 'unknown'})`);
-          return false;
-        }
-  
-        // Check available targets
-        const targets = await new Promise((resolve) => {
-          chrome.debugger.getTargets((t) => resolve(t));
-        });
-        const tabTarget = targets.find(t => t.tabId === tabId);
-        if (!tabTarget) {
-          console.warn(`No target available for tab ${tabId}. Targets:`, targets.map(t => ({tabId: t.tabId, url: t.url})));
-          if (attempt < retries) {
-            await new Promise(r => setTimeout(r, delayMs * 2)); // Longer wait if no target
-            continue;
-          }
-          return false;
-        }
-        console.log(`Target found for tab ${tabId}:`, tabTarget.url);
-  
-        // Step 2: Force detach if already attached
-        await new Promise((resolve) => {
-          chrome.debugger.detach({ tabId }, () => {
-            console.log("Detach complete (ignore if not attached):", chrome.runtime.lastError?.message || 'none');
-            resolve();
-          });
-        });
-  
-        // Step 3: Try attach with version 1.3, fallback to 1.2
-        const versions = attempt <= 3 ? ["1.3"] : ["1.2"]; // Fallback after 3 tries
-        let attached = false;
-        for (const version of versions) {
-          try {
-            await new Promise((resolve, reject) => {
-              chrome.debugger.attach({ tabId }, version, () => {
-                if (chrome.runtime.lastError) {
-                  reject(new Error(chrome.runtime.lastError.message));
-                } else {
-                  resolve();
-                }
-              });
-            });
-            
-            setState({isDebuggerAttached:true,attachedTabId:tabId})
-            console.log(`Debugger attached with ${version} on attempt ${attempt} for tab ${tabId}`);
-            // Log platform for diagnostics
-            chrome.runtime.getPlatformInfo(info => console.log("Platform info:", info));
-            return true;
-          } catch (e) {
-            console.error(`Attach failed with ${version}:`, e.message);
-          }
-        }
-  
-        if (!attached) throw new Error("All versions failed");
-  
-      } catch (e) {
-        console.error(`Attach attempt ${attempt} failed:`, e.message);
-        if (attempt < retries) {
-          console.log(`Retrying in ${delayMs}ms...`);
-          await new Promise(r => setTimeout(r, delayMs));
-        }
-      }
-    }
-  
-    console.error("Final attach failure - Debugger not attached");
-    setState({isDebuggerAttached:false,attachedTabId:null})
-    // Optional: Notify UI of failure
-    // chrome.runtime.sendMessage({ type: 'debuggerFailed', tabId });
-    return false;
-  }
-  
-  export  async function waitForPageReady(tabId) {
-    // 1. Wait for tab.status === 'complete'
-    await new Promise((resolve) => {
-      const check = async () => {
-        try {
-          const tab = await chrome.tabs.get(tabId);
-          if (tab.status === "complete") {
-            resolve();
-          } else {
-            setTimeout(check, 200);
-          }
-        } catch (e) {
-          resolve(); // tab closed
-        }
-      };
-      check();
-    });
-  
-    // 2. Double-check inside the page for document.readyState
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId },
-        func: () => {
-          return new Promise((res) => {
-            if (document.readyState === "complete") {
-              res(true);
-            } else {
-              window.addEventListener("load", () => res(true), { once: true });
-            }
-          });
-        },
-      });
-    } catch (err) {
-      console.warn("⚠️ Could not confirm document readiness:", err);
-    }
-  }
-  export function reorderTabs(windowId) {
-    if (!getState()?.tabState[windowId]) return;
-  
-    getState().tabState[windowId].forEach((tab, index) => {
-      tab.tabOrder = index + 1;
-    });
-  }
-  export function setActiveTab(windowId, activeTabId) {
-    if (!getState()?.tabState[windowId]) return;
-  
-    getState().tabState[windowId] =  getState().tabState[windowId].map(t => ({
-      ...t,
-      isCurrentTab: t.tabId === activeTabId
-    }));
-    
-  }
-  export function setTabOrder(tab,windowId){
-     
-    if (!getState().tabState[windowId]) getState().tabState[windowId] = [];
-  
-    getState().tabState[windowId].push({
-      tabId:tab.id,
-      tabOrder: getState().tabState[windowId].length + 1,
-      isCurrentTab: false
-    });
-  }
-  export function getCurrentActiveTabOrder(windowId,tabId) {
-    if (!getState().tabState[windowId]) return null;
-  
-    const active = getState().tabState[windowId].find(t => t.isCurrentTab);
-    const secondTab = getState().tabState[windowId].find(t => t.tabId==tabId)?.tabOrder || 1
-    return active ? active.tabOrder : secondTab;
-  }
-  export async function attachContentScriptToIframe(tabId, frameSrc) {
-  await new Promise(resolve => setTimeout(resolve, 3000));
 
-  const frames = await chrome.webNavigation.getAllFrames({ tabId });
-  console.log("🔍 all frames:", frames);
+    const { data } = supabaseClient.storage
+      .from("screenshots")
+      .getPublicUrl(imageName);
 
-   const targetFrame = frames.find(f => {
-  try {
-    if (!f.url) return false;
-    const recorded = new URL(frameSrc);
-    const current = new URL(f.url);
-
-    const normalizePath = (path) =>
-      path
-        .split('/')
-        .filter(Boolean)
-        .filter(segment => !/^\d+$/.test(segment) && !/^[a-f0-9]{8,}$/i.test(segment))
-        .join('/');
-
-    const recordedPath = normalizePath(recorded.pathname);
-    const currentPath = normalizePath(current.pathname);
-
-    return current.origin === recorded.origin && currentPath === recordedPath;
-  } catch {
-    return false;
-  }
-});
-  console.log("🎯 targetFrame:", targetFrame);
-
-  if (!targetFrame) throw new Error("Iframe not found or not loaded");
-
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId, frameIds: [targetFrame.frameId] },
-      files: ["iframe.bundle.js"],
-    });
-
-    console.log("[BG] ✅ Injected content script into frame:", targetFrame.url);
-    return "attached";
+    return data?.publicUrl || null;
   } catch (err) {
-    console.error("[BG] ❌ Script injection failed:", err);
-    throw err;
+    console.error("Error capturing/uploading screenshot:", err);
+    return null;
   }
 }
- export function dataURLtoBlob(dataUrl) {
+
+ 
+
+export async function attachDebuggerToTab(tabId, retries = 5, delayMs = 1000) {
+  const state = getState();
+
+  if (state.isDebuggerAttached && state.attachedTabId === tabId) {
+    console.log(`Debugger already attached to ${tabId}`);
+    return true;
+  }
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const tab = await webext.tabs.get(tabId);
+      if (!tab || !isInjectableUrl(tab.url)) return false;
+
+      const targets = await webext.debugger.getTargets();
+      const tabTarget = targets.find((x) => x.tabId === tabId);
+
+      if (!tabTarget) {
+        if (attempt < retries) {
+          await wait(delayMs * 2);
+          continue;
+        }
+        return false;
+      }
+
+      try {
+        await webext.debugger.detach({ tabId });
+      } catch (_) {}
+
+      const protocols = attempt <= 3 ? ["1.3"] : ["1.2"];
+
+      for (const version of protocols) {
+        try {
+          await webext.debugger.attach({ tabId }, version);
+
+          setState({
+            isDebuggerAttached: true,
+            attachedTabId: tabId,
+          });
+
+          console.log(`Debugger attached via ${version}`);
+          return true;
+        } catch (err) {
+          console.warn(`Attach via ${version} failed`);
+        }
+      }
+    } catch (err) {
+      console.log(`Error attach attempt ${attempt}`, err);
+    }
+
+    if (attempt < retries) await wait(delayMs);
+  }
+
+  setState({
+    isDebuggerAttached: false,
+    attachedTabId: null,
+  });
+
+  return false;
+}
+
+// --------------------------------------------------------
+// WAIT FOR PAGE READY
+// --------------------------------------------------------
+
+export async function waitForPageReady(tabId) {
+  // polling for tab.status
+  await new Promise((resolve) => {
+    const check = async () => {
+      try {
+        const tab = await webext.tabs.get(tabId);
+        if (tab.status === "complete") return resolve();
+      } catch {
+        return resolve();
+      }
+      setTimeout(check, 200);
+    };
+    check();
+  });
+
+  try {
+    await webext.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        return new Promise((res) => {
+          if (document.readyState === "complete") res(true);
+          else window.addEventListener("load", () => res(true), { once: true });
+        });
+      },
+    });
+  } catch (err) {
+    console.warn("Ready check failed:", err);
+  }
+}
+
+// --------------------------------------------------------
+// TAB TRACKING FUNCTIONS
+// --------------------------------------------------------
+
+export function reorderTabs(windowId) {
+  const st = getState();
+  if (!st?.tabState[windowId]) return;
+
+  st.tabState[windowId].forEach((t, i) => {
+    t.tabOrder = i + 1;
+  });
+}
+
+export function setActiveTab(windowId, activeTabId) {
+  const st = getState();
+  if (!st?.tabState[windowId]) return;
+
+  st.tabState[windowId] = st.tabState[windowId].map((t) => ({
+    ...t,
+    isCurrentTab: t.tabId === activeTabId,
+  }));
+}
+
+export function setTabOrder(tab, windowId) {
+  const st = getState();
+  if (!st.tabState[windowId]) st.tabState[windowId] = [];
+
+  st.tabState[windowId].push({
+    tabId: tab.id,
+    tabOrder: st.tabState[windowId].length + 1,
+    isCurrentTab: false,
+  });
+}
+
+export function getCurrentActiveTabOrder(windowId, tabId) {
+  const st = getState();
+  if (!st.tabState[windowId]) return null;
+
+  const active = st.tabState[windowId].find((t) => t.isCurrentTab);
+  const fallback = st.tabState[windowId].find((t) => t.tabId === tabId)?.tabOrder;
+
+  return active ? active.tabOrder : fallback || 1;
+}
+
+// --------------------------------------------------------
+// IFRAME SCRIPT ATTACH
+// --------------------------------------------------------
+
+export async function attachContentScriptToIframe(tabId, frameSrc) {
+  await new Promise((r) => setTimeout(r, 3000));
+
+  const frames = await webext.webNavigation.getAllFrames({ tabId });
+
+  const targetFrame = frames.find((f) => {
+    try {
+      if (!f.url) return false;
+
+      const recorded = new URL(frameSrc);
+      const current = new URL(f.url);
+
+      const normalize = (p) =>
+        p
+          .split("/")
+          .filter(Boolean)
+          .filter((seg) => !/^\d+$/.test(seg) && !/^[a-f0-9]{8,}$/i.test(seg))
+          .join("/");
+
+      return (
+        recorded.origin === current.origin &&
+        normalize(recorded.pathname) === normalize(current.pathname)
+      );
+    } catch {
+      return false;
+    }
+  });
+
+  if (!targetFrame) throw new Error("Iframe not found");
+
+  await webext.scripting.executeScript({
+    target: { tabId, frameIds: [targetFrame.frameId] },
+    files: ["iframe.bundle.js"],
+  });
+
+  return "attached";
+}
+
+// --------------------------------------------------------
+// DATA URL TO BLOB
+// --------------------------------------------------------
+
+export function dataURLtoBlob(dataUrl) {
   const [header, base64] = dataUrl.split(",");
   const mime = header.match(/:(.*?);/)[1];
   const binary = atob(base64);
   const array = new Uint8Array(binary.length);
+
   for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+
   return new Blob([array], { type: mime });
+}
+
+// --------------------------------------------------------
+export function wait(ms) {
+  return new Promise((r) => setTimeout(r, ms));
 }

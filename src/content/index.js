@@ -1,6 +1,6 @@
  // src/content/index.js
 import { setupUI, updateBtnUI } from './ui.js';
- 
+  import webext from 'webextension-polyfill';
 import { subscribe } from './content-states.js';
 
 (function () {
@@ -12,12 +12,12 @@ import { subscribe } from './content-states.js';
 
   // Inject alert override script
   const script = document.createElement('script');
-  script.src = chrome.runtime.getURL('alert-override.js');
+  script.src = webext.runtime.getURL('alert-override.js');
   script.onload = () => script.remove();
   (document.head || document.documentElement).appendChild(script);
 
   // Keep alive connection
-  const port = chrome.runtime.connect({ name: 'keepAlive' });
+  const port = webext.runtime.connect({ name: 'keepAlive' });
   setInterval(() => {
     port.postMessage({ ping: Date.now() });
   }, 25000);

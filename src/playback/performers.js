@@ -1,4 +1,5 @@
-//playback.performer.js
+// playback.performer.js - Cross-webext compatible version
+import webext from 'webextension-polyfill';
 import {
   delay,
   locateElement,
@@ -20,17 +21,19 @@ import { captureAndUpload, compare, cropImage, sendMessagePromise } from "../uti
 export async function runAutomation() {
   let preSavedActions = new Set();
   const attachedframes = new Set();
+  
   let {
     actions,
     currentStep = 0,
     allResults = [],
     tabOrder = 1,
-  } = await chrome.storage.local.get([
+  } = await webext.storage.local.get([
     "actions",
     "currentStep",
     "allResults",
     "tabOrder",
   ]);
+  
   const steps = actions || [];
 
   if (allResults.length === steps.length) {
@@ -54,27 +57,20 @@ export async function runAutomation() {
       updateStatus(failed === 0 ? "✅ Test Passed" : "❌ Test Failed");
       console.log("📦 Final Test Result:", finalReport);
 
-      chrome.runtime.sendMessage(
-        {
+      try {
+        await webext.runtime.sendMessage({
           command: "saveTestResults",
           data: {
             status: failed === 0 ? "pass" : "fail",
             result: finalReport,
           },
-        },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            console.error(
-              "Error sending message to background:",
-              chrome.runtime.lastError
-            );
-          } else {
-            console.log("Response from background:", response);
-          }
-        }
-      );
+        });
+        console.log("✅ Test results sent to background");
+      } catch (error) {
+        console.error("Error sending message to background:", error);
+      }
 
-      await chrome.storage.local.remove([
+      await webext.storage.local.remove([
         "actions",
         "currentStep",
         "allResults",
@@ -95,7 +91,7 @@ export async function runAutomation() {
       console.log(tabOrder, step.tabOrder);
       await delay(1500);
       if (step.changeTab && step.type != "navigate") {
-        switchToTab(step.tabOrder);
+       await  switchToTab(step.tabOrder);
       }
       break;
     }
@@ -119,7 +115,7 @@ export async function runAutomation() {
         };
         results.push(preResult);
         preSavedActions.add(i);
-        await chrome.storage.local.set({
+        await webext.storage.local.set({
           currentStep: i,
           allResults: results,
         });
@@ -138,13 +134,18 @@ export async function runAutomation() {
         if (!targetIframe) {
           res = { success: false, message: "Iframe not found", assertions: [] };
         }
+        
         if (targetIframe && !attachedframes.has(targetIframe.src)) {
-          const response = await chrome.runtime.sendMessage({
-            command: "ATTACH_IFRAME_SCRIPT",
-            frameSrc: targetIframe.src,
-          });
-          attachedframes.add(targetIframe.src);
-          console.log("resposne", response);
+          try {
+            const response = await webext.runtime.sendMessage({
+              command: "ATTACH_IFRAME_SCRIPT",
+              frameSrc: targetIframe.src,
+            });
+            attachedframes.add(targetIframe.src);
+            console.log("response", response);
+          } catch (error) {
+            console.error("Error attaching iframe script:", error);
+          }
         }
 
         if (targetIframe) {
@@ -156,7 +157,7 @@ export async function runAutomation() {
                 message: "Iframe response timeout",
                 assertions: [],
               });
-            }, 30000); // 15s timeout
+            }, 30000); // 30s timeout
 
             const handler = (event) => {
               if (
@@ -171,7 +172,6 @@ export async function runAutomation() {
             window.addEventListener("message", handler);
 
             // Send the action to the iframe
-
             targetIframe.contentWindow.postMessage(
               { type: "PLAYBACK_IFRAME_ACTION", action: step },
               "*"
@@ -182,6 +182,7 @@ export async function runAutomation() {
       } else {
         res = await performAction(step, steps, i);
       }
+      
       if (!preSavedActions.has(i)) {
         results.push({
           ...result,
@@ -189,7 +190,7 @@ export async function runAutomation() {
           message: res.message,
           assertions: res.assertions || [],
         });
-        await chrome.storage.local.set({ allResults: results });
+        await webext.storage.local.set({ allResults: results });
       } else {
         console.log(
           `⚠️ Skipping duplicate save for pre-saved action at step ${i}`
@@ -206,9 +207,10 @@ export async function runAutomation() {
           status: "fail",
           message: res.message,
         };
-        await chrome.storage.local.set({ allResults: results });
+        await webext.storage.local.set({ allResults: results });
         break;
       }
+      
       updateStatus("⏳ Waiting for Network...");
       await waitForNetworkIdlePolling();
     } catch (err) {
@@ -233,12 +235,12 @@ export async function runAutomation() {
           assertions: [],
         });
       }
-      await chrome.storage.local.set({ allResults: results });
+      await webext.storage.local.set({ allResults: results });
       break;
     }
 
     if (!preSavedActions.has(i)) {
-      await chrome.storage.local.set({ currentStep: i });
+      await webext.storage.local.set({ currentStep: i });
     }
     await delay(300);
   }
@@ -257,30 +259,24 @@ export async function runAutomation() {
       results,
       status: failed === 0 ? "✅ TEST PASSED" : "TEST FAILED",
     };
+    
     updateStatus(failed === 0 ? "✅ Test Passed" : "❌ Test Failed");
     console.log("📦 Final Test Result:", finalReport);
 
-    chrome.runtime.sendMessage(
-      {
+    try {
+      await webext.runtime.sendMessage({
         command: "saveTestResults",
         data: {
           status: failed === 0 ? "pass" : "fail",
           result: finalReport,
         },
-      },
-      (response) => {
-        if (chrome.runtime.lastError) {
-          console.error(
-            "Error sending message to background:",
-            chrome.runtime.lastError
-          );
-        } else {
-          console.log("Response from background:", response);
-        }
-      }
-    );
+      });
+      console.log("✅ Test results sent to background");
+    } catch (error) {
+      console.error("Error sending message to background:", error);
+    }
 
-    await chrome.storage.local.remove([
+    await webext.storage.local.remove([
       "actions",
       "currentStep",
       "allResults",
@@ -288,10 +284,11 @@ export async function runAutomation() {
     ]);
   }
 }
+
 async function performAction(action, arr, index) {
   const statusOverlay = document.getElementById("__playback_status_overlay__");
   function updateStatus(text) {
-    statusOverlay.textContent = text;
+    if (statusOverlay) statusOverlay.textContent = text;
   }
 
   function movePointerToElement(el) {
@@ -301,12 +298,14 @@ async function performAction(action, arr, index) {
     pointer.style.top = `${window.scrollY + rect.top + 20}px`;
     pointer.style.left = `${window.scrollX + rect.left + 50}px`;
   }
- function movePointerDrag(x, y) {
+  
+  function movePointerDrag(x, y) {
     const pointer = document.getElementById('__playback_pointer__');
     if (!pointer) return;
     pointer.style.top = `${window.scrollY + y}px`;
     pointer.style.left = `${window.scrollX + x}px`;
   }
+  
   updateStatus("⏳ Waiting for Network...");
   await waitForNetworkIdlePolling();
   updateStatus("🚀 Running test playback...");
@@ -325,10 +324,11 @@ async function performAction(action, arr, index) {
     }
     element = locatedElement;
     element.scrollIntoView({ behavior: "auto", block: "center" });
-    if(action.type=='dragstart' || action.type=='dragend'){
-       movePointerDrag(action.clientX || element.getBoundingClientRect().left, action.clientY || element.getBoundingClientRect().top);
-    }else{
- movePointerToElement(element);
+    
+    if (action.type == 'dragstart' || action.type == 'dragend') {
+      movePointerDrag(action.clientX || element.getBoundingClientRect().left, action.clientY || element.getBoundingClientRect().top);
+    } else {
+      movePointerToElement(element);
     }
     
     await delay(700);
@@ -346,6 +346,7 @@ async function performAction(action, arr, index) {
         resMessage = `Navigated to ${action.url}`;
         await delay(2000);
         break;
+        
       case "navigate": {
         const expectedUrl = action.url;
         const timeout = 10000;
@@ -355,6 +356,7 @@ async function performAction(action, arr, index) {
 
         const normalizedExpected = normalizeUrl(expectedUrl);
         let normalizedCurrent;
+        
         while (elapsed < timeout) {
           normalizedCurrent = normalizeUrl(window.location.href);
           if (normalizedCurrent === normalizedExpected) {
@@ -374,51 +376,55 @@ async function performAction(action, arr, index) {
           assertions: [],
         };
       }
-            case 'dragstart': {
-  const el = await waitForElementByXPath(action.element?.xpath, 1000);
-  const rect = el.getBoundingClientRect();
-  const clientX = Math.floor(rect.left + (action.offsetX || rect.width / 2));
-  const clientY = Math.floor(rect.top + (action.offsetY || rect.height / 2));
-  const safeY = Math.min(clientY, window.innerHeight - 10);
+      
+      case 'dragstart': {
+        const el = await waitForElementByXPath(action.element?.xpath, 1000);
+        const rect = el.getBoundingClientRect();
+        const clientX = Math.floor(rect.left + (action.offsetX || rect.width / 2));
+        const clientY = Math.floor(rect.top + (action.offsetY || rect.height / 2));
+        const safeY = Math.min(clientY, window.innerHeight - 10);
 
-  await sendMessageAsync({ command: "pointerdragstart", x: clientX, y:  safeY });
-  actionSuccess = true;
-  resMessage = "Drag started";
-  break;
-}
-
-       
-
-       case 'dragend': {
-  const el = await waitForElementByXPath(action.element?.xpath, 1000);
-  const rect = el.getBoundingClientRect();
-  const clientX = Math.floor(rect.left + (action.offsetX || rect.width / 2));
-  const clientY = Math.floor(rect.top + (action.offsetY || rect.height / 2));
-     const safeY = Math.min(clientY, window.innerHeight - 10);
-  await sendMessageAsync({ command: "pointerdrop", x: clientX, y: safeY  });
-  actionSuccess = true;
-  resMessage = "Drag completed";
-  break;
-}
-      case 'compareImage':
-         
-         const overlay = document.getElementById('__playback_status_overlay__');
-  if (overlay) overlay.style.display = 'none';
-         window.scrollTo({
-              left: action.rect.scrollX || 0,
-              top: action.rect.scrollY || 0,
-              behavior: "smooth",
-            });
-             await delay(2000)
-            
-         const newUrl =  await captureAndUpload(action.rect)
-         
-         if (overlay) overlay.style.display = 'block';
-          updateStatus("⏳ Comparing Image...");
-        const aiRes = await compare(action.image_url,newUrl)
-        actionSuccess =  aiRes.status=='pass' ;
-        resMessage = aiRes.summary || aiRes.error; 
+        await sendMessageAsync({ command: "pointerdragstart", x: clientX, y: safeY });
+        actionSuccess = true;
+        resMessage = "Drag started";
         break;
+      }
+
+      case 'dragend': {
+        const el = await waitForElementByXPath(action.element?.xpath, 1000);
+        const rect = el.getBoundingClientRect();
+        const clientX = Math.floor(rect.left + (action.offsetX || rect.width / 2));
+        const clientY = Math.floor(rect.top + (action.offsetY || rect.height / 2));
+        const safeY = Math.min(clientY, window.innerHeight - 10);
+        
+        await sendMessageAsync({ command: "pointerdrop", x: clientX, y: safeY });
+        actionSuccess = true;
+        resMessage = "Drag completed";
+        break;
+      }
+      
+      case 'compareImage': {
+        const overlay = document.getElementById('__playback_status_overlay__');
+        if (overlay) overlay.style.display = 'none';
+        
+        window.scrollTo({
+          left: action.rect.scrollX || 0,
+          top: action.rect.scrollY || 0,
+          behavior: "smooth",
+        });
+        await delay(2000);
+        
+        const newUrl = await captureAndUpload(action.rect);
+        
+        if (overlay) overlay.style.display = 'block';
+        updateStatus("⏳ Comparing Image...");
+        
+        const aiRes = await compare(action.image_url, newUrl);
+        actionSuccess = aiRes.status == 'pass';
+        resMessage = aiRes.summary || aiRes.error;
+        break;
+      }
+      
       case "Enter":
       case "Tab":
       case "ArrowUp":
@@ -427,18 +433,10 @@ async function performAction(action, arr, index) {
       case "ArrowRight":
       case "Escape": {
         try {
-          await new Promise((resolve, reject) => {
-            chrome.runtime.sendMessage(
-              { command: "trustedKeyEvent", key: action.type },
-              (res) => {
-                if (chrome.runtime.lastError)
-                  return reject(chrome.runtime.lastError);
-                if (res?.ok) resolve(true);
-                else reject(res?.error || "Unknown error");
-              }
-            );
+          await webext.runtime.sendMessage({ 
+            command: "trustedKeyEvent", 
+            key: action.type 
           });
-
           actionSuccess = true;
           resMessage = `✅ Simulated ${action.type} key via debugger`;
         } catch (err) {
@@ -479,6 +477,7 @@ async function performAction(action, arr, index) {
               break;
             }
           }
+          
           const result = await getClickablePoint(
             el,
             action.offsetX,
@@ -515,6 +514,7 @@ async function performAction(action, arr, index) {
         }
         break;
       }
+      
       case "scroll": {
         if (action.containerXPath) {
           const result = document.evaluate(
@@ -554,57 +554,63 @@ async function performAction(action, arr, index) {
         await delay(1000);
         break;
       }
+      
       case "change": {
         element.focus();
-         const finalValue = action?.variable?.name ? resolveVariableValue(action?.variable):action.value
+        const finalValue = action?.variable?.name ? resolveVariableValue(action?.variable) : action.value;
+        
         if (element.isContentEditable) {
           element.innerHTML = "";
           await delay(100);
-          element.innerHTML =  finalValue;
+          element.innerHTML = finalValue;
           element.dispatchEvent(
             new InputEvent("input", {
               bubbles: true,
-              data:  finalValue,
+              data: finalValue,
               inputType: "insertText",
             })
           );
           element.dispatchEvent(new Event("change", { bubbles: true }));
-          actionSuccess = element.textContent ===  finalValue;
+          actionSuccess = element.textContent === finalValue;
         } else {
           element.value = "";
           await delay(100);
-          element.value =  finalValue;
+          element.value = finalValue;
           element.dispatchEvent(
             new InputEvent("input", {
               bubbles: true,
-              data:  finalValue,
+              data: finalValue,
               inputType: "insertText",
             })
           );
           element.dispatchEvent(new Event("change", { bubbles: true }));
-          actionSuccess = element.value ===  finalValue;
+          actionSuccess = element.value === finalValue;
         }
         resMessage = "Successfully changed value";
         break;
       }
+      
       case "hover": {
         const rect = element.getBoundingClientRect();
         const x = Math.floor(rect.left + rect.width / 2);
         const y = Math.floor(rect.top + rect.height / 2);
-        await new Promise((resolve) => {
-          chrome.runtime.sendMessage(
-            {
-              command: "trustedHover",
-              x,
-              y,
-            },
-            () => resolve()
-          );
-        });
-        actionSuccess = true;
-        resMessage = "Successfully hover";
+        
+        try {
+          await webext.runtime.sendMessage({
+            command: "trustedHover",
+            x,
+            y,
+          });
+          actionSuccess = true;
+          resMessage = "Successfully hover";
+        } catch (error) {
+          console.error("Hover failed:", error);
+          actionSuccess = false;
+          resMessage = "Failed to hover";
+        }
         break;
       }
+      
       case "fileSelect": {
         const fileData = action.storageData;
         if (!fileData) {
@@ -614,6 +620,7 @@ async function performAction(action, arr, index) {
             assertions: [],
           };
         }
+        
         const byteString = atob(fileData.content.split(",")[1]);
         const ab = new ArrayBuffer(byteString.length);
         const ia = new Uint8Array(ab);
@@ -629,6 +636,7 @@ async function performAction(action, arr, index) {
         resMessage = `File "${fileData.name}" selected`;
         break;
       }
+      
       default: {
         return {
           success: false,
@@ -643,6 +651,7 @@ async function performAction(action, arr, index) {
     const failedMsg =
       assertions.find((a) => a.success == false)?.message ||
       "No failed assertions";
+      
     return {
       success: actionSuccess && !failedAssertions,
       message: failedAssertions ? failedMsg : resMessage,
@@ -656,15 +665,19 @@ async function performAction(action, arr, index) {
     };
   }
 }
-export function switchToTab(tabOrder) {
-  chrome.runtime.sendMessage({
+
+export async function switchToTab(tabOrder) {
+  await webext.runtime.sendMessage({
     command: "SWITCH_TAB",
     tabOrder: tabOrder,
+  }).catch(error => {
+    console.error("Error switching tab:", error);
   });
 }
+
 export async function setupListner() {
-  chrome.runtime.onMessage.addListener(
-    async (message, sender, sendResponse) => {
+  webext.runtime.onMessage.addListener(
+    async (message, sender) => {
       if (message.action === "TAB_SWITCHED") {
         console.log("Tab switched to order:", message.tabOrder);
         // 🔁 restart your playback function here

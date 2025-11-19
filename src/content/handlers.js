@@ -2,12 +2,13 @@
 import { getElementInfo, generateXPaths } from "./xpath.js";
 import { getState, setState } from "./content-states.js";
 import { IMPORTANT_KEYS } from "../utils/constant.js";
-
+ import webext from 'webextension-polyfill';
 let lastRecordedScrollY = 0;
 export let pendingInputAction = null;
 
 
 let scrollTimeout = null;
+let scrollStartY
 let isScrolling = false;
 let scrollStartSnapshot = null;
 let pendingClickTimeout = null;
@@ -289,7 +290,7 @@ export function sendAction(action, el) {
   };
   if (!isRuntimeAvailable()) return;
   console.log("action 1", action);
-  chrome.runtime
+  webext.runtime
     .sendMessage({ command: "recordAction", action: updatedAction })
     .then(() => {})
     .catch(() => {});
@@ -298,7 +299,7 @@ export function sendAction(action, el) {
 function isRuntimeAvailable() {
   try {
     return (
-      !!chrome.runtime && !!chrome.runtime.sendMessage && !!chrome.runtime.id
+      !!webext.runtime && !!webext.runtime.sendMessage && !!webext.runtime.id
     );
   } catch {
     return false;

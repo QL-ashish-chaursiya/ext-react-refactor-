@@ -1,9 +1,9 @@
 import { setState } from "../content/content-states";
-
+ import webext from 'webextension-polyfill';
 export async function injectScript(file) {
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = chrome.runtime.getURL(file);
+      script.src = webext.runtime.getURL(file);
       script.onload = () => {
         script.remove();
         resolve();
@@ -14,17 +14,14 @@ export async function injectScript(file) {
   }
   
  
-export function sendMessagePromise(message) {
-  return new Promise((resolve, reject) => {
-    try {
-      chrome.runtime.sendMessage(message, (response) => {
-        if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
-        else resolve(response);
-      });
-    } catch (err) {
-      reject(err);
-    }
-  });
+ export async function sendMessagePromise(message) {
+  try {
+    return await webext.runtime.sendMessage(message);
+  } catch (err) {
+    // This catches both API errors (like no listener) and errors 
+    // explicitly thrown/returned by the message listener's promise.
+    throw err; 
+  }
 }
 export async function captureAndUpload(rect) {
   try {

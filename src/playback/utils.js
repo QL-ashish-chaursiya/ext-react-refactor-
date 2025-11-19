@@ -1,5 +1,5 @@
 import { IS_CUSTOM } from "../utils/constant";
-
+import webext from 'webextension-polyfill';
 export function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
@@ -158,17 +158,15 @@ export function delay(ms) {
     }
   }
   
-  export function sendMessageAsync(message) {
-    return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage(message, (response) => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-        } else {
-          resolve(response);
-        }
-      });
-    });
+   export async function sendMessageAsync(message) {
+  try {
+    const response = await webext.runtime.sendMessage(message);
+    return response;
+  } catch (err) {
+    throw err;
   }
+}
+
    export function updateStatus(text) {
     const statusOverlay = document.getElementById('__playback_status_overlay__');
     if (statusOverlay) {

@@ -4,7 +4,7 @@ import { getState, setState, subscribe } from './content-states.js';
 import { HOVERUI, WRAPPER_CSS } from './ui.css.js';
 import {  DrawCanvas, sendMessagePromise } from '../utils/helper.js';
 import { pendingInputAction } from './handlers.js';
-
+ import webext from 'webextension-polyfill';
 let shadowRoot = null;
 let shadowHost = null;
 
@@ -232,7 +232,7 @@ export async function setupUI() {
     }
     
     console.log("recording test", state.isPaused);
-    chrome.runtime.sendMessage({
+    await webext.runtime.sendMessage({
       command: "change-recording-state",
       recording: state.isPaused,
       target: "background"
@@ -250,7 +250,7 @@ export async function setupUI() {
     removeAllListeners();
     updateBtnUI();
 
-    chrome.runtime.sendMessage({
+   await  webext.runtime.sendMessage({
       command: 'stop-recording',
       target: 'background',
     });

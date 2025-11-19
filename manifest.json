@@ -20,14 +20,14 @@
     }
   },
   "permissions": [
-    "activeTab",      
-    "storage",        
-    "scripting",             
-    "tabs",           
-    "debugger",        
+    "activeTab",
+    "storage",
+    "scripting",
+    "tabs",
+    "debugger",
     "windows",
     "webNavigation",
-    "downloads"       
+    "downloads"
   ],
   "externally_connectable": {
     "matches": [
@@ -37,7 +37,10 @@
       "https://evertest.co/*"
     ]
   },
-  "background": { "service_worker": "background.bundle.js" },
+  "background": {
+    "service_worker": "background.bundle.js",
+    "type": "module"
+  },
   "side_panel": {
     "default_path": "sidebar/sidebar.html"
   },
@@ -51,8 +54,14 @@
     }
   ],
   "host_permissions": ["<all_urls>"],
-"incognito": "spanning",
+  "incognito": "spanning",
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self';"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "evertest@evertest.co",
+      "strict_min_version": "109.0"
+    }
   }
 }

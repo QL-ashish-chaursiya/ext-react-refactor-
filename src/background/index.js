@@ -1,26 +1,31 @@
- 
+// src/background/index.js - UPDATED VERSION
+// Import the webext polyfill at the very top
+import webext from 'webextension-polyfill';
+
 import { showOverlay, hideOverlay } from './injections.js';
 import { supabaseClient } from './supabase.js';
 import * as utils from './utils.js';
 import { setupMessageListeners } from './handlers.js';
 import { stopRecording, recordAction } from './recording.js';
-import { getState, initialState, setState, state } from './states.js';
- 
- 
+import { getState, initialState, setState } from './states.js';
+
+// Helper to check if webext supports debugger
+const supportsDebugger = typeof webext.debugger !== 'undefined';
+
 // Top-level listeners
-chrome.runtime.onInstalled.addListener((details) => {
+webext.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === 'install') {
-    chrome.tabs.create({ url: 'https://evertest.co/' });
+    await webext.tabs.create({ url: 'https://evertest.co/' });
   }
 });
 
-chrome.webNavigation.onBeforeNavigate.addListener((details) => {
+webext.webNavigation.onBeforeNavigate.addListener((details) => {
   if (
     details.frameId === 0 &&
     utils.isInjectableUrl(details.url) &&
     getState().recordingWindowId
   ) {
-    chrome.scripting
+    webext.scripting
       .executeScript({
         target: { tabId: details.tabId },
         func: showOverlay,
@@ -29,13 +34,13 @@ chrome.webNavigation.onBeforeNavigate.addListener((details) => {
   }
 });
 
-chrome.webNavigation.onCompleted.addListener((details) => {
+webext.webNavigation.onCompleted.addListener((details) => {
   if (
     details.frameId === 0 &&
     utils.isInjectableUrl(details.url) &&
     getState().recordingWindowId
   ) {
-    chrome.scripting
+    webext.scripting
       .executeScript({
         target: { tabId: details.tabId },
         func: hideOverlay,
@@ -44,7 +49,7 @@ chrome.webNavigation.onCompleted.addListener((details) => {
   }
 });
 
-chrome.webNavigation.onCommitted.addListener(
+webext.webNavigation.onCommitted.addListener(
   (details) => {
     if (
       getState().playbackWindowId &&
@@ -52,53 +57,52 @@ chrome.webNavigation.onCommitted.addListener(
       details.frameId === 0
     ) {
       console.log('Tab committed URL:', details.url, ' - Attempting debugger attach');
-      utils.attachDebuggerToTab(details.tabId);
+      if (supportsDebugger) utils.attachDebuggerToTab(details.tabId);
     }
   },
   { url: [{ schemes: ['http', 'https', 'file'] }] }
 );
 
-chrome.downloads.onCreated.addListener((downloadItem) => {
-  
-  setState({  lastDownloadStarted: true });
+webext.downloads.onCreated.addListener(() => {
+  setState({ lastDownloadStarted: true });
 });
 
-chrome.downloads.onChanged.addListener((delta) => {
+webext.downloads.onChanged.addListener((delta) => {
   if (delta.state && (delta.state.current === 'complete' || delta.state.current === 'interrupted')) {
     console.log('✅ Download finished/failed, resetting flag');
-    setState({  lastDownloadStarted:  false });
+    setState({ lastDownloadStarted: false });
   }
 });
 
-chrome.runtime.onConnect.addListener((port) => {
+webext.runtime.onConnect.addListener((port) => {
   if (port.name === 'keepAlive') {
-    
-    setState({   activePort: port });
+    setState({ activePort: port });
     port.onDisconnect.addListener(() => {
-      console.log('Port disconnected:', chrome.runtime.lastError);
-      setState({   activePort: null });
+      console.log('Port disconnected:', webext.runtime.lastError);
+      setState({ activePort: null });
     });
   }
 });
 
-chrome.debugger.onDetach.addListener((source, reason) => {
-  if (
-    source.tabId === getState().attachedTabId &&
-    getState().playbackWindowId &&
-    reason !== 'target_closed'
-  ) {
-    console.log('Re-attaching debugger after detach...');
-    setTimeout(() => {
-      utils.attachDebuggerToTab(source.tabId);
-    }, 500);
-  }
-});
+// Only add debugger listener if supported
+if (supportsDebugger) {
+  webext.debugger.onDetach.addListener((source, reason) => {
+    if (
+      source.tabId === getState().attachedTabId &&
+      getState().playbackWindowId &&
+      reason !== 'target_closed'
+    ) {
+      console.log('Re-attaching debugger after detach...');
+      setTimeout(() => utils.attachDebuggerToTab(source.tabId), 500);
+    }
+  });
+}
 
 // Setup handlers
 setupMessageListeners();
 
 // Tab/window listeners
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+webext.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete') {
     try {
       await utils.waitForPageReady(tabId);
@@ -109,17 +113,13 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
           const injected = await utils.injectContentScriptSafely(tabId, 'content.bundle.js');
           const { recording } = getState();
 
-          
-       
-          if (injected &&  recording) {
-            const action = {
+          if (injected && recording) {
+            recordAction({
               type: 'navigate',
               url: tab.url,
               tabOrder: getState().tabOrder,
               description: `Navigated to ${tab.url}`,
-            };
-            recordAction(action);
-            
+            });
           }
         } catch (error) {
           console.error('❌ Failed to reinject content script:', error);
@@ -142,94 +142,95 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 });
 
-chrome.tabs.onCreated.addListener(async (tab) => {
+webext.tabs.onCreated.addListener(async (tab) => {
   try {
+    // --- RECORDING WINDOW ---
     if (getState().recordingWindowId && tab.windowId === getState().recordingWindowId) {
+      console.log("checking recordingTabIds",getState().recordingTabIds)
       getState().recordingTabIds.add(tab.id);
-      setState({    tabOrder: getState().recordingTabIds.size });
-      console.log("tabOrder", getState().recordingTabIds.size)
-      utils.setTabOrder(tab,getState().recordingWindowId)
+      setState({ tabOrder: getState().recordingTabIds.size });
+
+      utils.setTabOrder(tab, getState().recordingWindowId);
+
       await utils.waitForPageReady(tab.id);
       await utils.injectContentScriptSafely(tab.id, 'content.bundle.js');
     }
 
+    // --- PLAYBACK WINDOW ---
     if (getState().playbackWindowId && tab.windowId === getState().playbackWindowId) {
-      const windowTabs = await chrome.tabs.query({ windowId: getState().playbackWindowId });
-     
-     
-      setState({tabOrder:windowTabs.length})
-      utils.setTabOrder(tab,getState().playbackWindowId)
-      setState({ currentPlayTab:tab.id})
+      const windowTabs = await webext.tabs.query({ windowId: getState().playbackWindowId });
+
+      setState({ tabOrder: windowTabs.length });
+      utils.setTabOrder(tab, getState().playbackWindowId);
+      setState({ currentPlayTab: tab.id });
+
       await utils.waitForPageReady(tab.id);
+
       try {
-        await chrome.scripting.executeScript({
+        await webext.scripting.executeScript({
           target: { tabId: tab.id },
           files: ['playback.bundle.js'],
         });
       } catch (err) {
         console.warn('⚠️ Script injection failed after navigation:', err);
       }
-      await chrome.storage.local.set({ tabOrder: utils.getCurrentActiveTabOrder(getState().playbackWindowId,tab.id), actions: getState().playbackArr });
+
+      await webext.storage.local.set({
+        tabOrder: utils.getCurrentActiveTabOrder(getState().playbackWindowId, tab.id),
+        actions: getState().playbackArr,
+      });
     }
   } catch (error) {
     console.error('Tab creation handler error:', error);
   }
 });
 
-chrome.windows.onRemoved.addListener(async (windowId) => {
+webext.windows.onRemoved.addListener(async () => {
   if (getState().recordingWindowId || getState().playbackWindowId) {
-     const tabs = await chrome.tabs.query({});
+    const tabs = await webext.tabs.query({});
     const reactAppTab = tabs.find(
       (tab) =>
-        tab.url &&
-        initialState.allowedHosts.some((host) => tab.url.includes(host))
+        tab.url && initialState.allowedHosts.some((host) => tab.url.includes(host))
     );
 
     if (reactAppTab) {
       try {
-        await chrome.scripting.executeScript({
+        await webext.scripting.executeScript({
           target: { tabId: reactAppTab.id },
           func: () => {
-            window.postMessage({ type: "browserClosed" }, "*");
+            window.postMessage({ type: 'browserClosed' }, '*');
           },
         });
-        console.log("✅ React app notified of moduleTestComplete");
+        console.log('✅ React app notified of moduleTestComplete');
       } catch (err) {
-        console.warn("Failed to inject notification script:", err);
+        console.warn('Failed to inject notification script:', err);
       }
     }
-    
-  }  
-  await chrome.storage.local.clear();
+  }
+
+  await webext.storage.local.clear();
   setState(initialState);
- 
 });
 
-chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+webext.tabs.onRemoved.addListener((tabId, removeInfo) => {
   const { windowId } = removeInfo;
-  if (getState().recording) {
-   
 
-    if (getState().tabState[windowId]) {
-      getState().tabState[windowId] = getState().tabState[windowId].filter(t => t.tabId !== tabId);
-  
-      // Reorder tabOrder sequentially
-      utils.reorderTabs(windowId);
-    }
-  
-     
+  if (getState().recording && getState().tabState[windowId]) {
+    getState().tabState[windowId] = getState().tabState[windowId].filter(
+      (t) => t.tabId !== tabId
+    );
+
+    utils.reorderTabs(windowId);
   }
- 
 });
-chrome.tabs.onActivated.addListener(activeInfo => {
+
+webext.tabs.onActivated.addListener((activeInfo) => {
   const { tabId, windowId } = activeInfo;
-   
-  if (getState().recording) {
-    if (getState().tabState[windowId]) {
-      utils.setActiveTab(windowId, tabId);
-    }
-  
-    
+
+  if (getState().recording && getState().tabState[windowId]) {
+    utils.setActiveTab(windowId, tabId);
   }
-   
 });
+
+// Export webext object for use in other files
+export { webext, supportsDebugger };

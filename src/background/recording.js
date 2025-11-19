@@ -1,4 +1,5 @@
 //background.recording.js
+  import webext from 'webextension-polyfill';
 import { supabaseClient } from './supabase.js';
 import { getState, initialState, setState, state } from './states.js';
 import { NAVIGATE_TYPES } from '../utils/constant.js';
@@ -22,7 +23,7 @@ export async function stopRecording() {
     }
 
     try {
-      await chrome.windows.remove(getState().recordingWindowId);
+      await  webext.windows.remove(getState().recordingWindowId);
      setState(initialState)
     } catch (e) {
       console.warn('Window already closed or failed:', e);

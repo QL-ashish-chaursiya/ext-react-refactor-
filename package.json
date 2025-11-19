@@ -1,11 +1,26 @@
 {
   "name": "chrome-extension",
   "version": "1.0.0",
-  "scripts": {
-    "build": "rollup -c"
+   "scripts": {
+    "build": "rollup -c && node scripts/manifest-chrome.js",
+    "build:chrome": "rollup -c && node scripts/manifest-chrome.js",
+    "build:firefox": "rollup -c && node scripts/manifest-firefox.js",
+    "build:edge": "rollup -c && node scripts/manifest-edge.js",
+    "build:safari": "rollup -c && node scripts/manifest-safari.js",
+    "build:all": "npm run build:chrome && npm run build:firefox && npm run build:edge && npm run build:safari",
+    "watch": "rollup -c -w",
+    "watch:chrome": "rollup -c -w",
+    "dev": "rollup -c && node scripts/manifest-chrome.js",
+    "dev:firefox": "rollup -c && node scripts/manifest-firefox.js && cd dist && web-ext run",
+    "test:firefox": "npm run build:firefox && cd dist && web-ext run",
+    "package:chrome": "npm run build:chrome && cd dist && zip -r ../evertest-chrome.zip .",
+    "package:firefox": "npm run build:firefox && cd dist && web-ext build --overwrite-dest",
+    "package:edge": "npm run build:edge && cd dist && zip -r ../evertest-edge.zip .",
+    "package:all": "npm run package:chrome && npm run package:firefox && npm run package:edge"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
+    "webextension-polyfill": "^0.12.0",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
@@ -14,6 +29,7 @@
     "@rollup/plugin-replace": "^6.0.2",
     "@rollup/plugin-terser": "^0.4.4",
     "rollup": "^4.50.2",
-    "rollup-plugin-copy": "^3.5.0"
+    "rollup-plugin-copy": "^3.5.0",
+    "web-ext": "^9.1.0"
   }
 }
