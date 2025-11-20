@@ -545,7 +545,7 @@ export function setupMessageListeners() {
       } else if (message.type === "check-incognito-mode") {
         try {
           const res = await webext.extension.isAllowedIncognitoAccess();
-          sendResponse({ success: res });
+           
 
           if (!res) {
             setTimeout(() => {
@@ -556,10 +556,10 @@ export function setupMessageListeners() {
             }, 1000);
           }
 
-          return true;
+          return { success: res };
         } catch (err) {
-          sendResponse({ success: false, error: err?.message ?? String(err) });
-          return true;
+         
+          return { success: false, error: err?.message ?? String(err) };
         }
       } else {
         sendResponse({ success: false, error: "Unknown external message type" });
