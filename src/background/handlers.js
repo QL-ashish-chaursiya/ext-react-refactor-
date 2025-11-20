@@ -540,7 +540,7 @@ export function setupMessageListeners() {
           playbackWindowId: newWindow.id,
         });
 
-        return sendResponse({ success: true });
+        return  { success: true }
         
       } else if (message.type === "check-incognito-mode") {
         try {
