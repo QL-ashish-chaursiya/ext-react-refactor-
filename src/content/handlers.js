@@ -20,7 +20,7 @@ export function attachAllListeners() {
   document.addEventListener("mouseout", handleHoverOut, true);
   document.addEventListener("input", handleInput, {
     capture: true,
-    passive: true,
+    passive:  false,
   });
   
   
@@ -277,7 +277,9 @@ export function getIframeElementForClickedNode(clickedElement) {
   }
 }
 
-export function sendAction(action, el) {
+export async function sendAction(action, el) {
+   const state = await getState();
+  if (!state.recording) return;
   const isInIframe = window.self !== window.top;
   console.log("iframe", window.self !== window.top);
   const iframeIdentifier = isInIframe
@@ -401,11 +403,8 @@ function hasMoreThanOneNonAlphabet(str) {
  
  
 
-  export async function handleInput(event) {
-  const state = await getState();
-  if (!state.recording || !isRuntimeAvailable() || state.hoverModeActive) return;
+  export  function handleInput(event) {
   if (event.target.closest('[data-recorder-ui="true"]')) return;
-
   const target = event.target;
   if (!target) return;
 
