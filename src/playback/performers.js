@@ -463,7 +463,7 @@ async function performAction(action, arr, index) {
         const clickResult = await ensureClickable(action.element?.xpath, 10000);
         if (clickResult.success) {
           const el = await waitForElementByXPath(action.element?.xpath, 1000);
-          const coverCheck = isElementCovered(el);
+          const coverCheck = isElementCovered(el,{x:action.offsetX,y:action.offsetY});
 
           if (coverCheck.covered) {
             console.log(`⚠️ Element covered: ${coverCheck.reason}`);

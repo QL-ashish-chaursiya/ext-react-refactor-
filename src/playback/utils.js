@@ -229,67 +229,82 @@ export function delay(ms) {
     }
   }
   // Helper function to check if element is covered
-export function isElementCovered(element) {
+ export function isElementCovered(element, customCoords = null) {
   try {
-    const rect = element.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    
-    // Get the topmost element at the center point
-    const topElement = document.elementFromPoint(centerX, centerY);
-    
-    if (!topElement) return { covered: true, reason: 'No element found at point' };
-    
-    // Check if the top element is the target or a descendant
-    if (topElement === element || element.contains(topElement)) {
-      return { covered: false, reason: 'Element is clickable' };
+    if (!element || element.nodeType !== 1) {
+      return { covered: true, reason: "Invalid DOM element" };
     }
-    
-    // Check if covering element is an overlay/loader/popup
-    const coveringElement = topElement;
-    const computedStyle = window.getComputedStyle(coveringElement);
-    const tagName = coveringElement.tagName.toLowerCase();
-    const className = coveringElement.className || '';
-    const id = coveringElement.id || '';
-    
-    // Common patterns for overlays/loaders/popups
-    const overlayPatterns = [
-      /overlay/i, /modal/i, /popup/i, /loader/i, 
-      /spinner/i, /loading/i, /backdrop/i, /dialog/i,
-      /toast/i, /notification/i, /cover/i
-    ];
-    
-    const isOverlay = overlayPatterns.some(pattern => 
-      pattern.test(className) || pattern.test(id) || pattern.test(tagName)
-    );
-    
-    // Check if element has high z-index (common for overlays)
+
+    // 1) Get rect safely
+    const rect = element.getBoundingClientRect();
+    if (!rect || rect.width === 0 || rect.height === 0) {
+      return { covered: true, reason: "Element has no visible size" };
+    }
+
+    // 2) Calculate interaction point
+    let point = { x: 0, y: 0 };
+
+    if (customCoords) {
+      point = {
+        x: rect.left + customCoords.x,
+        y: rect.top + customCoords.y,
+      };
+    } else {
+      point = {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2,
+          };
+    }
+
+    // 3) Get element at point
+    const topElement = document.elementFromPoint(point.x, point.y);
+
+    if (!topElement) {
+      return { covered: true, reason: "No element found at click point" };
+    }
+
+    // --- IMPORTANT: supports SVG <path> etc ---
+    const isSame =
+      topElement === element ||
+      element.contains(topElement) ||
+      topElement.contains(element);
+
+    if (isSame) {
+      return { covered: false, reason: "Element is clickable" };
+    }
+
+    // 4) Ensure topElement is a valid Element before styles
+    if (!(topElement instanceof Element)) {
+      return { covered: true, reason: "Top element is not a valid Element node" };
+    }
+
+    const computedStyle = window.getComputedStyle(topElement);
     const zIndex = parseInt(computedStyle.zIndex) || 0;
-    const hasHighZIndex = zIndex > 100;
-    
-    // Check if element has overlay-like styling
-    const hasOverlayStyle = 
-      computedStyle.position === 'fixed' || 
-      computedStyle.position === 'absolute';
-    
-    if (isOverlay || (hasHighZIndex && hasOverlayStyle)) {
-      return { 
-        covered: true, 
-        reason: `Element covered by other Element like  Loader/Overlay/Modal`,
-        coveringElement 
+
+    const isHighLayer =
+      zIndex > 100 &&
+      (computedStyle.position === "fixed" ||
+        computedStyle.position === "absolute");
+
+    if ( isHighLayer) {
+      return {
+        covered: true,
+        reason: "Covered by overlay/modal/loader",
+        coveringElement: topElement,
       };
     }
-    
-    return { 
-      covered: true, 
-      reason: `Element covered by other Element like  Loader/Overlay/Modal`,
-      coveringElement 
+
+    // fallback
+    return {
+      covered: true,
+      reason: "Covered by another element",
+      coveringElement: topElement,
     };
-    
-  } catch (error) {
-    return { covered: false, reason: 'Error checking coverage: ' + error.message };
+  } catch (err) {
+    return { covered: false, reason: "Error: " + err.message };
   }
 }
+
 
 // Helper to wait for element to be uncovered
 export async function waitForElementUncovered(element, timeout = 10000) {
