@@ -91,6 +91,15 @@ export function attachAllListeners() {
     
 
 export async function handlePointerDown(e) {
+   const el = e.target;
+    const info = getElementInfo(el);
+  // Store click info immediately
+  const clickInfo = {
+    target: el,
+    clientX: e.clientX,
+    clientY: e.clientY,
+    elementInfo:info
+  };
   const state = await getState();
   
   // Skip if not recording or in special modes
@@ -101,14 +110,7 @@ export async function handlePointerDown(e) {
   // Skip recorder UI
   if (e.target.closest('[data-recorder-ui="true"]')) return;
   
-  const el = e.target;
   
-  // Store click info immediately
-  const clickInfo = {
-    target: el,
-    clientX: e.clientX,
-    clientY: e.clientY,
-  };
   
   // Clear any pending click
   if (pendingClickTimeout) {
@@ -129,7 +131,7 @@ export async function handlePointerDown(e) {
     isDragging = true;
     draggedElement = el;
     
-    const info = getElementInfo(el);
+   
     sendAction({
       type: "dragstart",
       element: info,
@@ -146,12 +148,12 @@ export async function handlePointerDown(e) {
 
 // New function to handle click detection
 function handleClickFromPointer(clickInfo) {
-  const { target, clientX, clientY } = clickInfo;
+  const { target, clientX, clientY,elementInfo } = clickInfo;
   
   const rect = target.getBoundingClientRect();
   const offsetX = clientX - rect.left;
   const offsetY = clientY - rect.top;
-  const elementInfo = getElementInfo(target);
+  
 
   const action = {
     type: "mousedown", // or "mousedown" if you prefer

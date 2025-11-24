@@ -259,9 +259,9 @@ export function delay(ms) {
     // 3) Get element at point
     const topElement = document.elementFromPoint(point.x, point.y);
 
-    if (!topElement) {
-      return { covered: true, reason: "No element found at click point" };
-    }
+    // if (!topElement) {
+    //   return { covered: true, reason: "No element found at click point" };
+    // }
 
     // --- IMPORTANT: supports SVG <path> etc ---
     const isSame =
