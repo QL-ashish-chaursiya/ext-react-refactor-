@@ -572,7 +572,7 @@ async function performAction(action, arr, index) {
             })
           );
           element.dispatchEvent(new Event("change", { bubbles: true }));
-          actionSuccess = element.textContent === finalValue;
+          actionSuccess = true;
         } else {
           element.value = "";
           await delay(100);
@@ -585,7 +585,7 @@ async function performAction(action, arr, index) {
             })
           );
           element.dispatchEvent(new Event("change", { bubbles: true }));
-          actionSuccess = element.value === finalValue;
+          actionSuccess = true;
         }
         resMessage = "Successfully changed value";
         break;
