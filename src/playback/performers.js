@@ -420,7 +420,8 @@ async function performAction(action, arr, index) {
         updateStatus("⏳ Comparing Image...");
         
         const aiRes = await compare(action.image_url, newUrl);
-        actionSuccess = aiRes.status == 'pass';
+    
+        actionSuccess = !(aiRes.missing?.length>0 || aiRes.text_changes?.length>0) && aiRes.success;
         resMessage = aiRes.summary || aiRes.error;
         break;
       }

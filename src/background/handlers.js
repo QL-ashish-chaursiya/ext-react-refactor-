@@ -388,7 +388,7 @@ export function setupMessageListeners() {
               }
 
               // reset to initial state
-               await chrome.windows.remove(getState().playbackWindowId);
+               await webext.windows.remove(getState().playbackWindowId);
                setState(initialState);
 
               return { status: "processed", message: "Test results received" };
