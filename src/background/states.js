@@ -41,10 +41,10 @@ export const state = {
     lastDownloadStarted:false,
     tabState :{},
     allowedHosts: [
-      "localhost",
       "evertest.co",
       "dev-everest.qkkalabs.com",
       "stupendous-speculoos-48b46c.netlify.app",
+      "localhost",
     ],
   };
   // Optional helpers to update state safely

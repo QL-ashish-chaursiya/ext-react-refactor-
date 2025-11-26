@@ -307,18 +307,89 @@ export function delay(ms) {
 
 
 // Helper to wait for element to be uncovered
-export async function waitForElementUncovered(element, timeout = 10000) {
+ export async function waitForElementUncovered(element, timeout = 15000, customCoords = null) {
   const startTime = Date.now();
+  let scrollDownAttempted = false;
+  let scrollUpAttempted = false;
+  let finalWaitAttempted = false;
   
   while (Date.now() - startTime < timeout) {
-    const coverCheck = isElementCovered(element);
+    const coverCheck = isElementCovered(element, customCoords);
     
     if (!coverCheck.covered) {
       return { success: true, message: 'Element is now clickable' };
     }
     
     console.log(`⏳ Waiting for overlay to clear: ${coverCheck.reason}`);
-    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Step 1: Scroll page down, then scrollIntoView
+    if (!scrollDownAttempted) {
+      console.log('📜 Step 1: Scrolling page down, then element into view...');
+      try {
+        window.scrollBy({ top: 1000, behavior: 'smooth' });
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        scrollDownAttempted = true;
+        
+        const recheckAfterScrollDown = isElementCovered(element, customCoords);
+        if (!recheckAfterScrollDown.covered) {
+          return { success: true, message: 'Element clickable after scroll down + scrollIntoView' };
+        }
+        console.log('⚠️ Still covered after scroll down approach');
+        continue;
+      } catch (err) {
+        console.warn('Failed scroll down approach:', err);
+      }
+    }
+    
+    // Step 2: Scroll page up, then scrollIntoView
+    if (scrollDownAttempted && !scrollUpAttempted) {
+      console.log('📜 Step 2: Scrolling page up, then element into view...');
+      try {
+        window.scrollBy({ top: -3000, behavior: 'smooth' });
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        scrollUpAttempted = true;
+        
+        const recheckAfterScrollUp = isElementCovered(element, customCoords);
+        if (!recheckAfterScrollUp.covered) {
+          return { success: true, message: 'Element clickable after scroll up + scrollIntoView' };
+        }
+        console.log('⚠️ Still covered after scroll up approach');
+        continue;
+      } catch (err) {
+        console.warn('Failed scroll up approach:', err);
+      }
+    }
+    
+    // Step 3: Final wait for 5 seconds
+    if (scrollDownAttempted && scrollUpAttempted && !finalWaitAttempted) {
+      console.log('⏳ Step 3: Waiting 5 seconds for overlay to auto-clear...');
+      finalWaitAttempted = true;
+      
+      const finalWaitStart = Date.now();
+      while (Date.now() - finalWaitStart < 5000) {
+        const finalCheck = isElementCovered(element, customCoords);
+        if (!finalCheck.covered) {
+          return { success: true, message: 'Element clickable after 5 second wait' };
+        }
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      
+      // After all attempts, return failure
+      return { 
+        success: false, 
+        message: 'Element still covered after scroll down, scroll up, and 5s wait' 
+      };
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
   
   return { 

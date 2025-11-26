@@ -470,7 +470,7 @@ async function performAction(action, arr, index) {
             console.log(`⚠️ Element covered: ${coverCheck.reason}`);
             updateStatus("⏳ Waiting for overlay to clear...");
 
-            const uncoverResult = await waitForElementUncovered(el, 10000);
+            const uncoverResult = await waitForElementUncovered(el, 10000,{x:action.offsetX,y:action.offsetY});
 
             if (!uncoverResult.success) {
               actionSuccess = false;
