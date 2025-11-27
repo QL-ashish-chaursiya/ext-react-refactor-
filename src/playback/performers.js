@@ -87,7 +87,7 @@ export async function runAutomation() {
   for (let i = currentStep; i < steps.length; i++) {
     const step = steps[i];
 
-    if (tabOrder != step.tabOrder) {
+    if (tabOrder != (step.tabOrder || 1)) {
       console.log(tabOrder, step.tabOrder);
       await delay(1500);
       if (step.changeTab && step.type != "navigate") {
