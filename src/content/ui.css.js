@@ -1,29 +1,28 @@
- export const HOVERUI = `
+export const HOVERUI = `
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
   }
   
-  
   :host {
     position: fixed;
     top: 10px;
     right: 10px;
-    z-index: 999999;
+    z-index: 2147483647;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     cursor: move;
     user-select: none;
     font-size: 14px;
     line-height: 1.4;
+    pointer-events: auto; /* 🔥 FIX: Ensure pointer events are captured */
   }
-  
   
   #recording-status-overlay {
     position: relative;
     width: 250px;
+    pointer-events: auto; /* 🔥 FIX */
   }
-  
   
   .container {
     background: white;
@@ -34,14 +33,15 @@
     flex-direction: column;
     gap: 12px;
     border: 1px solid rgba(0, 0, 0, 0.1);
+    pointer-events: auto; /* 🔥 FIX: Block clicks from passing through */
   }
   
-   
   .header {
     display: flex;
     margin-bottom: 20px;
     justify-content: space-between;
     align-items: center;
+    pointer-events: none; /* Allow buttons inside to handle events */
   }
   
   .brand-name {
@@ -67,13 +67,12 @@
     animation: pulse 1.5s ease-in-out infinite;
   }
   
-  /* Button list */
   .button-list {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    pointer-events: none; /* Let buttons handle their own events */
   }
-  
   
   .button, button {
     padding: 8px 16px;
@@ -91,16 +90,18 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    pointer-events: auto; /* 🔥 FIX: Buttons must capture events */
   }
   
- 
   #addHoverBtn, #startPauseRecordingBtn, #compareImgBtn {
     border-color: rgb(0, 170, 120);
     color: rgb(0, 136, 96);
     background: white;
   }
   
-  #addHoverBtn:hover:not(.disabled), #startPauseRecordingBtn:hover,#compareImgBtn:hover {
+  #addHoverBtn:hover:not(.disabled), 
+  #startPauseRecordingBtn:hover,
+  #compareImgBtn:hover {
     background: rgba(0, 170, 120, 0.05);
     transform: translateY(-1px);
   }
@@ -109,7 +110,6 @@
     border-color: rgb(0, 170, 120);
     box-shadow: 0 0 0 3px rgba(0, 170, 120, 0.1);
   }
-  
   
   #stopBtn {
     padding: 8px 16px;
@@ -121,6 +121,7 @@
     border: 2px solid rgb(0, 170, 120);
     font-weight: 500;
     transition: all 0.2s ease;
+    pointer-events: auto; /* 🔥 FIX */
   }
   
   #stopBtn:hover:not(.disabled) {
@@ -128,7 +129,6 @@
     border-color: rgb(0, 150, 100);
     transform: translateY(-1px);
   }
-  
   
   #hoverBackBtn {
     padding: 6px 12px;
@@ -139,31 +139,29 @@
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
+    pointer-events: auto; /* 🔥 FIX */
   }
   
   #hoverBackBtn:hover {
     background: rgba(0, 170, 120, 0.05);
   }
   
-  
   .disabled, :disabled {
     background-color: #d1d5db !important;
     color: #6b7280 !important;
     cursor: not-allowed !important;
-    pointer-events: none !important;
+    pointer-events: auto !important; /* 🔥 FIX: Still capture events to prevent pass-through */
     opacity: 0.7 !important;
     border-color: #d1d5db !important;
     transform: none !important;
   }
   
-   
   #hoverConfigUI {
     display: none;
     flex-direction: column;
     gap: 8px;
     border-radius: 12px;
   }
-  
   
   label {
     font-size: 13px;
@@ -173,17 +171,17 @@
     gap: 6px;
     cursor: pointer;
     user-select: none;
+    pointer-events: auto; /* 🔥 FIX */
   }
   
-   
   input[type="checkbox"] {
     width: 16px;
     height: 16px;
     margin: 0;
     cursor: pointer;
     accent-color: rgb(0, 170, 120);
+    pointer-events: auto; /* 🔥 FIX */
   }
-  
   
   @keyframes pulse {
     0% { opacity: 1; }
@@ -191,13 +189,12 @@
     100% { opacity: 1; }
   }
   
-   
   .__recorder-hover-highlight__ {
     outline: 2px dashed #008860 !important;
     outline-offset: 2px !important;
   }
-  `
-  export const WRAPPER_CSS = `
+`
+export const WRAPPER_CSS = `
     <div class="container">
       <div class="header">
         <span class="brand-name">Evertest</span>
@@ -220,4 +217,4 @@
         <button id="stopBtn">Stop</button>
       </div>
     </div>
-  `
+  `;

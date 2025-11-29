@@ -111,9 +111,10 @@ export async function setupUI() {
     position: fixed;
     top: 10px;
     right: 10px;
-    z-index: 999999;
+    z-index: 2147483647;
     cursor: move;
     user-select: none;
+    pointer-events: auto;
   `;
   
   shadowHost.addEventListener('mousedown', (e) => {
