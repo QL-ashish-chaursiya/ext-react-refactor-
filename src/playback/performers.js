@@ -27,11 +27,13 @@ export async function runAutomation() {
     currentStep = 0,
     allResults = [],
     tabOrder = 1,
+    wait
   } = await webext.storage.local.get([
     "actions",
     "currentStep",
     "allResults",
     "tabOrder",
+    "wait"
   ]);
   
   const steps = actions || [];
@@ -75,6 +77,7 @@ export async function runAutomation() {
         "currentStep",
         "allResults",
         "tabOrder",
+        "wait"
       ]);
     }
     return;
@@ -242,7 +245,8 @@ export async function runAutomation() {
     if (!preSavedActions.has(i)) {
       await webext.storage.local.set({ currentStep: i });
     }
-    await delay(300);
+    const finalWait = (wait==undefined ? 1 :wait)
+    await delay(finalWait*1000);
   }
 
   const isFailed = results.some((r) => r.status === "fail");
@@ -281,6 +285,7 @@ export async function runAutomation() {
       "currentStep",
       "allResults",
       "tabOrder",
+      "wait"
     ]);
   }
 }
@@ -331,7 +336,7 @@ async function performAction(action, arr, index) {
       movePointerToElement(element);
     }
     
-    await delay(700);
+    await delay(300);
   }
 
   let actionSuccess = false;
@@ -460,7 +465,7 @@ async function performAction(action, arr, index) {
         updateStatus("⏳ Waiting for Network...");
         await waitForNetworkIdlePolling();
         updateStatus("🚀 Running test playback...");
-
+        
         const clickResult = await ensureClickable(action.element?.xpath, 10000);
         if (clickResult.success) {
           const el = await waitForElementByXPath(action.element?.xpath, 1000);
@@ -511,7 +516,7 @@ async function performAction(action, arr, index) {
           }
         } else {
           actionSuccess = false;
-          resMessage = result.message;
+          resMessage =  clickResult.message;
         }
         break;
       }

@@ -507,7 +507,7 @@ export function setupMessageListeners() {
       } else if (message.type === "runTest") {
         const actions = message.data;
         const testUrl = actions.url;
-        const {  browser: customBrowserSettings } = message.projectSetting || {};
+        const {  browser: customBrowserSettings,wait } = message.projectSetting || {};
 
          setState({
           tabOrder: 1,
@@ -525,6 +525,7 @@ export function setupMessageListeners() {
           actions: actions.actions,
           allResults: [],
           currentStep: 0,
+          wait
         });
 
         const newWindow = await webext.windows.create({
