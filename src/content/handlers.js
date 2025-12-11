@@ -381,9 +381,25 @@ function hasMoreThanOneNonAlphabet(str) {
 }
 
 // ✅ NEW: Generate unique key for input field
-function getInputKey(target) {
+ function getInputKey(target) {
   const elementInfo = getElementInfo(target);
-  return elementInfo.xpath?.[0] || elementInfo.id || `${elementInfo.tagName}-${Date.now()}`;
+  if (elementInfo.id) {
+    return elementInfo.id;
+  }
+  
+  if (target.name) {
+    return `name-${target.name}`;
+  }
+  
+  // ✅ FIX: Use a stable fallback instead of Date.now()
+  // Create a unique key based on element properties
+  const tagName = elementInfo.tagName || 'unknown';
+  const type = target.type || '';
+  const className = target.className || '';
+  const placeholder = target.placeholder || '';
+  
+  // Generate a hash-like stable key
+  return `${tagName}-${type}-${className}-${placeholder}`.replace(/\s+/g, '-');
 }
 
 // ✅ NEW: Flush all pending inputs
