@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Evertest Recorder",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "description": "Automates web testing by recording and replaying interactions, offering an effortless tool. Learn more at https://evertest.co",
   "default_locale": "en",
   "icons": {
