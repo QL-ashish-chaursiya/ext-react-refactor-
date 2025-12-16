@@ -477,11 +477,11 @@ async function performAction(action, arr, index) {
 
             const uncoverResult = await waitForElementUncovered(el, 10000,{x:action.offsetX,y:action.offsetY});
 
-            if (!uncoverResult.success) {
-              actionSuccess = false;
-              resMessage = `${coverCheck.reason}`;
-              break;
-            }
+            // if (!uncoverResult.success) {
+            //   actionSuccess = false;
+            //   resMessage = `${coverCheck.reason}`;
+            //   break;
+            // }
           }
           
           const result = await getClickablePoint(
