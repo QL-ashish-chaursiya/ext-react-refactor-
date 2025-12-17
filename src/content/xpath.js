@@ -706,12 +706,15 @@
     console.log("xpath,",uniqueSelectors)
     return uniqueSelectors;
   };
-  export function getElementInfo(element) {
-      return {
-        id: element.id || '',
-        tagName: element.tagName,
-        name: element.name || '',
-        value: element.value || element.getAttribute('value') || '',
-        xpath: generateXPaths(element),
-      };
-    }
+   export function getElementInfo(element) {
+  const id = element.id || '';
+
+  return {
+    id,
+    tagName: element.tagName,
+    name: element.name || '',
+    value: element.value || element.getAttribute('value') || '',
+    xpath: generateXPaths(element),
+    ...(id.includes('evertest') ? { isAlert: true } : {})
+  };
+}

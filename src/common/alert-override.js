@@ -5,12 +5,12 @@
     // Custom alert
     window.alert = function (message) {
       return new Promise((resolve) => {
-        const modalId = `custom-alert`;
+        const modalId = `custom-alert-evertest`;
         const modal = document.createElement('div');
         modal.id = modalId;
         modal.innerHTML = `
           <div style="margin-bottom: 15px;">${message}</div>
-          <button id="${modalId}-ok">OK</button>
+          <button id="${modalId}-ok" evertest-btn="ok">OK</button>
         `;
         Object.assign(modal.style, {
           position: 'fixed',
@@ -43,13 +43,13 @@
     // Custom confirm
     window.confirm = function (message) {
       return new Promise((resolve) => {
-        const modalId = `custom-confirm`;
+        const modalId = `custom-confirm-evertest`;
         const modal = document.createElement('div');
         modal.id = modalId;
         modal.innerHTML = `
           <div style="margin-bottom: 15px;">${message}</div>
-          <button id="${modalId}-yes" style="margin-right: 10px;">Yes</button>
-          <button id="${modalId}-no">No</button>
+          <button id="${modalId}-yes" style="margin-right: 10px;" evertest-btn="yes">Yes</button>
+          <button id="${modalId}-no" evertest-btn="no">No</button>
         `;
         Object.assign(modal.style, {
           position: 'fixed',
@@ -88,15 +88,15 @@
     // Custom prompt
     window.prompt = function (message, defaultValue = '') {
       return new Promise((resolve) => {
-        const modalId = `custom-prompt`;
+        const modalId = `custom-prompt-evertest`;
         const modal = document.createElement('div');
         modal.id = modalId;
         modal.innerHTML = `
           <div style="margin-bottom: 10px;">${message}</div>
-          <input id="${modalId}-input" type="text" value="${defaultValue}" style="margin-bottom: 10px; width: 100%;" />
+          <input id="${modalId}-input" type="text" value="${defaultValue}" style="margin-bottom: 10px; width: 100%;" evertest-btn="input" />
           <br/>
-          <button id="${modalId}-ok" style="margin-right: 10px;">OK</button>
-          <button id="${modalId}-cancel">Cancel</button>
+          <button id="${modalId}-ok" style="margin-right: 10px;" evertest-btn="ok">OK</button>
+          <button id="${modalId}-cancel" evertest-btn="cancel">Cancel</button>
         `;
         Object.assign(modal.style, {
           position: 'fixed',
