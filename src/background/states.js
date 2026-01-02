@@ -42,6 +42,7 @@ export const state = {
     tabState :{},
     allowedHosts: [
       "evertest.co",
+      "qa-everest.qkkalabs.com",
       "dev-everest.qkkalabs.com",
       "stupendous-speculoos-48b46c.netlify.app",
       "localhost",
