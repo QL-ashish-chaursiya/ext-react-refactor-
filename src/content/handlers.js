@@ -485,7 +485,14 @@ export function handleInput(event) {
       value,
       description: `Enter "${value}"`,
     };
+const inputKey = getInputKey(target);
+   
 
+  pendingInputActions.set(inputKey, {
+    action:pendingInputAction,
+    target,
+    timestamp: Date.now()
+  });
     return;
   }
 
