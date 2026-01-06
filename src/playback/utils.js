@@ -91,9 +91,9 @@ export function delay(ms) {
         return { success: false, message: "❌ Element found but not visible (zero size or animating)" };
       }
   
-      if (el.disabled) {
-        return { success: false, message: "❌ Element is disabled" };
-      }
+      // if (el.disabled) {
+      //   return { success: false, message: "❌ Element is disabled" };
+      // }
   
       return { success: true, message: "✅ Clickable" };
     }
