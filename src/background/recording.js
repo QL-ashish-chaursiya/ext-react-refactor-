@@ -33,7 +33,7 @@ export async function stopRecording() {
   }
 }
 
-export function recordAction(action) {
+export async function recordAction(action) {
   const { recording } = getState();
   console.log("action",action)
   console.log("recording", recording)
@@ -55,8 +55,7 @@ const prevType =  getState().recordedActions[actionLength - 1].type
    
   
   action.sequence = getState().recordedActions.length + 1;
-  action.tabOrder = getCurrentActiveTabOrder(getState().recordingWindowId)
-  action.changeTab = getState().recordedActions?.length && getState().recordedActions[getState().recordedActions.length - 1].tabOrder==getCurrentActiveTabOrder(getState().recordingWindowId) ? false :true
+  action.tabOrder = await getCurrentActiveTabOrder()
   getState().recordedActions.push(action)
    
    

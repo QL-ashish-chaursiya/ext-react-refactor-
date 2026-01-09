@@ -47,12 +47,27 @@ export function setupMessageListeners() {
           case "SWITCH_TAB": {
             try {
               const newTabOrder = message.tabOrder;
-              const state =  getState();
-              const tabs = (state.tabState && state.tabState[state.playbackWindowId]) || [];
-              const target = tabs.find((t) => t.tabOrder === newTabOrder);
-              if (!target) return { success: false, error: "Target tab not found" };
+               const currentWindow = await  webext.windows.getCurrent();
+               const windowId = currentWindow.id;
+                console.log("Current window ID:", windowId);
+                const allTabs = await  webext.tabs.query({ windowId: windowId });
+                console.log("Total tabs in window:", allTabs.length);
+                const tabIndex =  newTabOrder;
+    
+    if (tabIndex < 0 || tabIndex >= allTabs.length) {
+      throw new Error(`Invalid tabOrder: ${newTabOrder}. Available tabs: 1-${allTabs.length}`);
+    }
+    
+    const targetTab = allTabs[tabIndex];
+    console.log("Target tab found:", {
+      id: targetTab.id,
+      index: targetTab.index,
+      title: targetTab.title,
+      url: targetTab.url
+    });
+              
 
-              const tabId = target.tabId;
+              const tabId = targetTab.id;
               // Update memory state (await getState/setState)
               const upd1 =  setState({ currentPlayTab: tabId });
               // Ensure debugger attached
@@ -451,6 +466,41 @@ export function setupMessageListeners() {
             recordAction({ ...message.action });
             return { status: "recorded" };
           }
+          // Query whether the sender tab is the active playback tab
+          case "IS_ACTIVE_PLAYBACK_TAB": {
+  try {
+    const playbackWindowId = getState().playbackWindowId;
+    const senderTabId = sender?.tab?.id;
+
+    if (!playbackWindowId || !senderTabId) {
+      return {
+        isActive: false,
+        playbackWindowId: playbackWindowId ?? null,
+      };
+    }
+
+    // 🔍 Ask browser which tab is ACTUALLY active
+    const [activeTab] = await webext.tabs.query({
+      active: true,
+      windowId: playbackWindowId,
+    });
+
+    const isActive = activeTab?.id === senderTabId;
+
+    return {
+      isActive,
+      activeTabId: activeTab?.id ?? null,
+      playbackWindowId,
+    };
+  } catch (err) {
+    console.error("IS_ACTIVE_PLAYBACK_TAB error", err);
+    return {
+      isActive: false,
+      error: err?.message ?? String(err),
+    };
+  }
+}
+
 
           // ----------------------------
           default:

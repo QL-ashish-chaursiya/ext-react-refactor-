@@ -106,6 +106,7 @@ webext.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete') {
     try {
       await utils.waitForPageReady(tabId);
+       if (!(await utils.isValidUserTab(tabId))) return;
 
       // --- RECORDING FLOW ---
       if (getState().recordingTabIds.has(tabId)) {
@@ -176,7 +177,6 @@ webext.tabs.onCreated.addListener(async (tab) => {
       }
 
       await webext.storage.local.set({
-        tabOrder: utils.getCurrentActiveTabOrder(getState().playbackWindowId, tab.id),
         actions: getState().playbackArr,
       });
     }
@@ -224,11 +224,30 @@ webext.tabs.onRemoved.addListener((tabId, removeInfo) => {
   }
 });
 
-webext.tabs.onActivated.addListener((activeInfo) => {
+webext.tabs.onActivated.addListener(async (activeInfo) => {
   const { tabId, windowId } = activeInfo;
 
   if (getState().recording && getState().tabState[windowId]) {
+    // update in-memory active flag
+      if (!(await utils.isValidUserTab(tabId))) return;
     utils.setActiveTab(windowId, tabId);
+
+    try {
+      const actions = getState().recordedActions || [];
+      if (actions.length === 0) return;
+const  tabOrder = await utils.getCurrentActiveTabOrder();
+      const last = actions[actions.length - 1];
+      if (last && last.type === 'switchTab') {
+        // if it already points to the same tabOrder, do nothing
+        if (last.tabOrder === tabOrder) return;
+        last.tabOrder = tabOrder;
+        last.description = `Switched to tab ${tabOrder}`;
+        return;
+      }
+      recordAction({ type: 'switchTab', description: `Switched to tab ${tabOrder}` });
+    } catch (err) {
+      console.warn('Error while recording tab switch:', err);
+    }
   }
 });
 

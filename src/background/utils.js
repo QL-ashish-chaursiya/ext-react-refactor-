@@ -252,14 +252,25 @@ export function setTabOrder(tab, windowId) {
   });
 }
 
-export function getCurrentActiveTabOrder(windowId, tabId) {
-  const st = getState();
-  if (!st.tabState[windowId]) return null;
+export async function getCurrentActiveTabOrder() {
+    const currentWindow = await  webext.windows.getCurrent();
+const windowId = currentWindow.id;
+console.log("Current window ID:", windowId);
 
-  const active = st.tabState[windowId].find((t) => t.isCurrentTab);
-  const fallback = st.tabState[windowId].find((t) => t.tabId === tabId)?.tabOrder;
+// Get all tabs in the current window
+const allTabs = await  webext.tabs.query({ windowId });
 
-  return active ? active.tabOrder : fallback || 1;
+// Get the currently active (focused) tab
+const activeTab = allTabs.find(tab => tab.active);
+
+if (!activeTab) {
+  console.warn("No active tab found");
+  return;
+}
+
+// Current focused tab order (0-based index)
+const  tabOrder = activeTab.index;
+return tabOrder
 }
 
 // --------------------------------------------------------
@@ -322,4 +333,28 @@ export function dataURLtoBlob(dataUrl) {
 // --------------------------------------------------------
 export function wait(ms) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+export async function isValidUserTab(tabId) {
+  try {
+    const tab = await webext.tabs.get(tabId);
+    const url = tab?.url || "";
+    if (
+      !url ||
+      url === "about:blank" ||
+      url.startsWith("about:") ||
+      url.startsWith("chrome:") ||
+      url.startsWith("chrome-extension:") ||
+      url.startsWith("edge:") ||
+      url.startsWith("file:")
+      
+    ) {
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    // tab may be closing or inaccessible
+    return false;
+  }
 }

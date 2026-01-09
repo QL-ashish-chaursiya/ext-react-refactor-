@@ -90,12 +90,33 @@ export async function runAutomation() {
   for (let i = currentStep; i < steps.length; i++) {
     const step = steps[i];
 
-    if (tabOrder != (step.tabOrder || 1)) {
-      console.log(tabOrder, step.tabOrder);
-      await delay(1500);
-      if (step.changeTab && step.type != "navigate") {
-       await  switchToTab(step.tabOrder);
+    
+    try {
+      const resp = await webext.runtime.sendMessage({ command: "IS_ACTIVE_PLAYBACK_TAB" });
+      if (!resp || !resp.isActive) {
+        console.log("Playback paused: this tab is not the active playback tab. Stopping here.");
+        break;
       }
+    } catch (err) {
+      // If messaging fails, stop to avoid accidental actions in inactive tabs
+      console.warn("Failed to verify active playback tab, stopping playback:", err);
+      break;
+    }
+
+    // handle explicit switchTab step: instruct background to switch and then stop here
+    if (step.type === "switchTab") {
+      console.log(`🔀 Encountered switchTab action for tabOrder ${step.tabOrder}`);
+      // attempt to switch
+      await switchToTab(step.tabOrder);
+      results.push({
+        sequence: step.sequence,
+        description: step.description || `Switched to tab ${step.tabOrder}`,
+        status: "pass",
+        message: `Switched to tab ${step.tabOrder}`,
+        assertions: [],
+      });
+      await webext.storage.local.set({ allResults: results, currentStep: i });
+ 
       break;
     }
 

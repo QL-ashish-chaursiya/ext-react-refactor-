@@ -20,6 +20,7 @@ export const state = {
       "localhost",
       "evertest.co",
       "dev-everest.qkkalabs.com",
+      "qa-everest.qkkalabs.com",
       "stupendous-speculoos-48b46c.netlify.app",
     ],
   };
