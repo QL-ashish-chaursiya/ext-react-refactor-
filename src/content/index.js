@@ -20,7 +20,7 @@ import { subscribe } from './content-states.js';
   const port = webext.runtime.connect({ name: 'keepAlive' });
   setInterval(() => {
     port.postMessage({ ping: Date.now() });
-  }, 25000);
+  }, 10000);
 
   // UI setup
   setupUI();

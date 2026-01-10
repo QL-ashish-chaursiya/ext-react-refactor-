@@ -119,6 +119,23 @@ export async function runAutomation() {
  
       break;
     }
+     if (step.type === "CLOSE_TAB") {
+      
+      // attempt to switch
+       results.push({
+        sequence: step.sequence,
+        description: step.description || `close to tab ${step.tabIndex}`,
+        status: "pass",
+        message: `close to tab ${step.tabIndex}`,
+        assertions: [],
+      });
+      await webext.storage.local.set({ allResults: results, currentStep: i });
+      await closeToTab(step.tabIndex);
+      await delay(1000)
+      continue
+ 
+    
+    }
 
     const result = {
       sequence: step.sequence,
@@ -696,6 +713,14 @@ async function performAction(action, arr, index) {
 export async function switchToTab(tabOrder) {
   await webext.runtime.sendMessage({
     command: "SWITCH_TAB",
+    tabOrder: tabOrder,
+  }).catch(error => {
+    console.error("Error switching tab:", error);
+  });
+}
+export async function closeToTab(tabOrder) {
+  await webext.runtime.sendMessage({
+    command: "CLOSE_TAB",
     tabOrder: tabOrder,
   }).catch(error => {
     console.error("Error switching tab:", error);

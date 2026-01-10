@@ -142,12 +142,40 @@ webext.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
   }
 });
+webext.tabs.onMoved.addListener(async (tabId, moveInfo) => {
+  if (getState().recordingWindowId && tab.windowId === getState().recordingWindowId) {
+     const state = getState();
+  const tabs = state.openTabsData;
+
+  const { fromIndex, toIndex } = moveInfo;
+
+  // Shift indices of other tabs
+  Object.values(tabs).forEach(tab => {
+    if (fromIndex < toIndex) {
+      // moving right
+      if (tab.index > fromIndex && tab.index <= toIndex) {
+        tab.index -= 1;
+      }
+    } else {
+      // moving left
+      if (tab.index >= toIndex && tab.index < fromIndex) {
+        tab.index += 1;
+      }
+    }
+  });
+
+  // Update moved tab
+  getState().openTabsData[tabId].index = toIndex;
+
+  }
+  
+});
 
 webext.tabs.onCreated.addListener(async (tab) => {
   try {
     // --- RECORDING WINDOW ---
     if (getState().recordingWindowId && tab.windowId === getState().recordingWindowId) {
-      console.log("checking recordingTabIds",getState().recordingTabIds)
+      getState().openTabsData[tab.id] = { id: tab.id, index: tab.index };
       getState().recordingTabIds.add(tab.id);
       setState({ tabOrder: getState().recordingTabIds.size });
 
@@ -212,11 +240,34 @@ webext.windows.onRemoved.addListener(async () => {
   setState(initialState);
 });
 
-webext.tabs.onRemoved.addListener((tabId, removeInfo) => {
+webext.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
+   
   const { windowId } = removeInfo;
 
   if (getState().recording && getState().tabState[windowId]) {
-    getState().tabState[windowId] = getState().tabState[windowId].filter(
+     
+     const state = getState();
+  const tabs = state.openTabsData;
+
+  const removedIndex = tabs[tabId]?.index;
+ console.log("remove index",removedIndex)
+  if (removedIndex === undefined) return;
+  recordAction({
+    type: "CLOSE_TAB",
+    description:`close tab ${removedIndex}`,
+    tabIndex: removedIndex
+  });
+
+  // Remove the tab
+  delete getState().openTabsData[tabId];
+
+  // Shift remaining tabs left
+  Object.values(tabs).forEach(tab => {
+    if (tab.index > removedIndex) {
+      tab.index -= 1;
+    }
+  });
+  getState().tabState[windowId] = getState().tabState[windowId].filter(
       (t) => t.tabId !== tabId
     );
 

@@ -91,6 +91,63 @@ export function setupMessageListeners() {
               return { success: false, error: e?.message ?? String(e) };
             }
           }
+           case "CLOSE_TAB": {
+  try {
+    const closeTabIndex = message.tabOrder;
+
+    const currentWindow = await webext.windows.getCurrent();
+    const windowId = currentWindow.id;
+
+    // Get all tabs sorted by index
+    const allTabs = (await webext.tabs.query({ windowId }))
+      .sort((a, b) => a.index - b.index);
+
+    const tabToClose = allTabs[closeTabIndex];
+    if (!tabToClose) {
+      return { success: false, error: "Tab not found at index" };
+    }
+
+    const isActiveTab = tabToClose.active;
+
+    // Determine next focus index (Chrome behavior)
+    let nextFocusIndex = null;
+
+    if (isActiveTab) {
+      if (allTabs.length === 1) {
+        // Last tab → window will close, nothing to switch
+        nextFocusIndex = null;
+      } else if (closeTabIndex === allTabs.length - 1) {
+        // Closing last tab → focus previous
+        nextFocusIndex = closeTabIndex - 1;
+      } else {
+        // Focus next tab on right
+        nextFocusIndex = closeTabIndex;
+      }
+    }
+
+    // 🔴 Close the tab
+    await webext.tabs.remove(tabToClose.id);
+
+    // 🔁 Switch tab ONLY if closed tab was active
+    if (isActiveTab && nextFocusIndex !== null) {
+      await webext.tabs.update(allTabs[nextFocusIndex]?.id, {
+        active: true
+      });
+
+      // Notify content script
+      await webext.tabs.sendMessage(allTabs[nextFocusIndex].id, {
+        action: "TAB_SWITCHED",
+        tabOrder: nextFocusIndex
+      });
+    }
+
+    return { success: true };
+  } catch (e) {
+    console.error("CLOSE_TAB error", e);
+    return { success: false, error: e?.message ?? String(e) };
+  }
+}
+
 
           // ----------------------------
           case "CHECK_DOWNLOAD_STARTED": {
@@ -545,10 +602,10 @@ export function setupMessageListeners() {
         // ensure tabs exist
         const firstTab = recordingWindow.tabs && recordingWindow.tabs[0];
           getState().recordingTabIds.add(firstTab.id);
-
+ getState().openTabsData[firstTab.id] = { id: firstTab.id, index: firstTab.index };
               setState({recordingWindowId:recordingWindow.id})
 
-         setState({ recordingWindowId: recordingWindow.id });
+         
 
         // send response
         return { success: true };
