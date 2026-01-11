@@ -41,7 +41,15 @@ export async function injectContentScriptSafely(tabId, fileName) {
           files: ["iframeContent.bundle.js"],
         });
       }, 2000);
+    } else if(fileName === "playback.bundle.js"){
+        setTimeout(() => {
+        webext.scripting.executeScript({
+          target: { tabId, allFrames: true },
+          files: ["iframe.bundle.js"],
+        });
+      }, 2000);
     }
+    
 
     // slight delay
     await new Promise((r) => setTimeout(r, 100));
@@ -277,43 +285,10 @@ return tabOrder
 // IFRAME SCRIPT ATTACH
 // --------------------------------------------------------
 
-export async function attachContentScriptToIframe(tabId, frameSrc) {
-  await new Promise((r) => setTimeout(r, 3000));
 
-  const frames = await webext.webNavigation.getAllFrames({ tabId });
 
-  const targetFrame = frames.find((f) => {
-    try {
-      if (!f.url) return false;
 
-      const recorded = new URL(frameSrc);
-      const current = new URL(f.url);
 
-      const normalize = (p) =>
-        p
-          .split("/")
-          .filter(Boolean)
-          .filter((seg) => !/^\d+$/.test(seg) && !/^[a-f0-9]{8,}$/i.test(seg))
-          .join("/");
-
-      return (
-        recorded.origin === current.origin &&
-        normalize(recorded.pathname) === normalize(current.pathname)
-      );
-    } catch {
-      return false;
-    }
-  });
-
-  if (!targetFrame) throw new Error("Iframe not found");
-
-  await webext.scripting.executeScript({
-    target: { tabId, frameIds: [targetFrame.frameId] },
-    files: ["iframe.bundle.js"],
-  });
-
-  return "attached";
-}
 
 // --------------------------------------------------------
 // DATA URL TO BLOB

@@ -14,6 +14,7 @@ import {
   waitForElementUncovered,
   waitForIframe,
   resolveVariableValue,
+  locateIframeByXPath,
 } from "./utils.js";
 import { runAssertions } from "./assertions.js";
 import { captureAndUpload, compare, cropImage, sendMessagePromise } from "../utils/helper.js";
@@ -164,63 +165,52 @@ export async function runAutomation() {
       }
 
       let res;
-      if (step.isTopFrame == false) {
-        await delay(3000);
-        updateStatus("🚀 Running test playback...");
-        const refSrc = step.iframeIdentifier?.src;
-        console.log("refSrc", refSrc);
-        const targetIframe = await waitForIframe(refSrc, 5000, 1000);
+       if (step.isTopFrame === false || step?.iframe?.length>0) {
+  await delay(1000);
+  updateStatus("🚀 Running iframe action...");
 
-        console.log("targetIframe", targetIframe);
-        if (!targetIframe) {
-          res = { success: false, message: "Iframe not found", assertions: [] };
-        }
-        
-        if (targetIframe && !attachedframes.has(targetIframe.src)) {
-          try {
-            const response = await webext.runtime.sendMessage({
-              command: "ATTACH_IFRAME_SCRIPT",
-              frameSrc: targetIframe.src,
-            });
-            attachedframes.add(targetIframe.src);
-            console.log("response", response);
-          } catch (error) {
-            console.error("Error attaching iframe script:", error);
-          }
-        }
+  const targetIframe = await locateIframeByXPath(step.iframe);
+console.log("targetIframe",targetIframe)
+  if (!targetIframe) {
+    res = {
+      success: false,
+      message: "Iframe not found via xpath",
+      assertions: []
+    };
+    
+  }
 
-        if (targetIframe) {
-          res = await new Promise((resolve) => {
-            const timeout = setTimeout(() => {
-              console.warn("[Main] ⏱️ Timeout waiting for iframe response");
-              resolve({
-                success: false,
-                message: "Iframe response timeout",
-                assertions: [],
-              });
-            }, 30000); // 30s timeout
+   
+if (targetIframe) {
+ res = await new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      resolve({
+        success: false,
+        message: "Iframe playback timeout",
+        assertions: []
+      });
+    }, 30000);
 
-            const handler = (event) => {
-              if (
-                event.source === targetIframe.contentWindow &&
-                event.data?.type === "PLAYBACK_IFRAME_RESPONSE"
-              ) {
-                window.removeEventListener("message", handler);
-                clearTimeout(timeout);
-                resolve(event.data.result);
-              }
-            };
-            window.addEventListener("message", handler);
+    const handler = (event) => {
+      if (event.data?.type === "PLAYBACK_IFRAME_RESPONSE") {
+        clearTimeout(timeout);
+        window.removeEventListener("message", handler);
+        resolve(event.data.result);
+      }
+    };
 
-            // Send the action to the iframe
-            targetIframe.contentWindow.postMessage(
-              { type: "PLAYBACK_IFRAME_ACTION", action: step },
-              "*"
-            );
-            console.log("send iframe action");
-          });
-        }
-      } else {
+    window.addEventListener("message", handler);
+
+    targetIframe.contentWindow.postMessage(
+      { type: "PLAYBACK_IFRAME_ACTION", action: step,arr:steps,idx:i },
+      "*"
+    );
+     console.log("send iframe action");
+  });
+}
+  
+}
+else {
         res = await performAction(step, steps, i);
       }
       

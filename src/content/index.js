@@ -2,6 +2,8 @@
 import { setupUI, updateBtnUI } from './ui.js';
   import webext from 'webextension-polyfill';
 import { subscribe } from './content-states.js';
+import { sendAction } from './handlers.js';
+import { generateXPaths } from './xpath.js';
 
 (function () {
   if (window.hasOwnProperty('recordingInitialized')) {
@@ -9,6 +11,25 @@ import { subscribe } from './content-states.js';
     return;
   }
   window.recordingInitialized = true;
+   
+
+  window.addEventListener("message", e => {
+  if (e.data?.type !== "IFRAME_ACTION") return;
+
+  const iframe = [...document.querySelectorAll("iframe")]
+    .find(f => f.contentWindow === e.source);
+
+  if (!iframe) return;
+
+  const iframeXpath = generateXPaths(iframe);
+
+  sendAction({
+    ...e.data.action,
+    iframe: iframeXpath,
+    isTopFrame: false
+  });
+});
+
 
   // Inject alert override script
   const script = document.createElement('script');
@@ -25,7 +46,7 @@ import { subscribe } from './content-states.js';
   // UI setup
   setupUI();
   updateBtnUI();
-   
+
 
    
 

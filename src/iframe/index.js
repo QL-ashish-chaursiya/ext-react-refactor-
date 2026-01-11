@@ -17,11 +17,11 @@ import { performIframeAction } from "../playback/utils";
         console.log("event",event.data)
         if (!event.data || event.data.type !== "PLAYBACK_IFRAME_ACTION") return;
 
-        const { action } = event.data;
+        const { action,arr,idx } = event.data;
         console.log("[Iframe] ▶️ Received action from main frame:", action);
 
         try {
-          const result = await performIframeAction(action, [], 0);
+          const result = await performIframeAction(action, arr, idx);
           window.parent.postMessage({ type: "PLAYBACK_IFRAME_RESPONSE", result }, "*");
           console.log("[Iframe] ✅ Sent response back:", result);
         } catch (err) {

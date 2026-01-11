@@ -267,24 +267,16 @@ export function getIframeElementForClickedNode(clickedElement) {
   }
 }
 
-export async function sendAction(action, el) {
+export async function sendAction(action) {
   const state = await getState();
   if (!state.recording) return;
   
-  const isInIframe = window.self !== window.top;
-  console.log("iframe", window.self !== window.top);
-  const iframeIdentifier = isInIframe
-    ? getIframeElementForClickedNode(el)
-    : null;
-  const updatedAction = {
-    ...action,
-    isTopFrame: !isInIframe,
-    iframeIdentifier,
-  };
+   
+  
   if (!isRuntimeAvailable()) return;
   console.log("action 1", action);
   webext.runtime
-    .sendMessage({ command: "recordAction", action: updatedAction })
+    .sendMessage({ command: "recordAction", action})
     .then(() => {})
     .catch(() => {});
 }

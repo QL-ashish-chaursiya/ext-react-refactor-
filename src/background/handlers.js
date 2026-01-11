@@ -5,7 +5,6 @@ import {
   captureAndUploadScreenshot,
   setActiveTab,
   attachDebuggerToTab,
-  attachContentScriptToIframe,
   dataURLtoBlob,
   captureTab,
 } from "./utils.js";
@@ -30,18 +29,8 @@ export function setupMessageListeners() {
           }
 
           // ----------------------------
-          case "ATTACH_IFRAME_SCRIPT": {
-            const { frameSrc } = message;
-            const tabId = sender?.tab?.id;
-            if (!tabId) return { success: false, error: "No tabId" };
+         
 
-            try {
-              const result = await attachContentScriptToIframe(tabId, frameSrc);
-              return { success: true, result };
-            } catch (err) {
-              return { success: false, error: err?.message ?? String(err) };
-            }
-          }
 
           // ----------------------------
           case "SWITCH_TAB": {

@@ -42,7 +42,30 @@ export function delay(ms) {
       }, maxWait + 1000);
     });
   }
-  
+  export async function locateIframeByXPath(xpathArr, timeout = 10000) {
+  const start = Date.now();
+
+  while (Date.now() - start < timeout) {
+    for (const xp of xpathArr || []) {
+      try {
+        const res = document.evaluate(
+          xp,
+          document,
+          null,
+          XPathResult.FIRST_ORDERED_NODE_TYPE,
+          null
+        ).singleNodeValue;
+
+        if (res && res.tagName === "IFRAME") {
+          return res;
+        }
+      } catch {}
+    }
+    await delay(300);
+  }
+  return null;
+}
+
   export async function locateElement(action) {
     const xpaths = action.element?.xpath || [];
   
@@ -449,7 +472,7 @@ export async function  locateIframeElement(action) {
     console.log(`❌ Failed to locate element using any XPath.`);
     return { element: null, failed: true };
   }
-export async function performIframeAction(action) {
+export async function performIframeAction(action,arr,index) {
    
 
   let element = null;
@@ -479,6 +502,13 @@ export async function performIframeAction(action) {
   try {
     switch (action.type) {
       case "mousedown": {
+        const nextAction =
+          arr?.length - 1 > index && arr[index + 1]?.type == "fileSelect";
+        if (nextAction) {
+          actionSuccess = true;
+          resMessage = "File input: click skipped to avoid file dialog";
+          break;
+        }
         const clickEvent = new MouseEvent("click", {
           bubbles: true,
           cancelable: true,
@@ -489,7 +519,27 @@ export async function performIframeAction(action) {
         resMessage = "✅ Successfully clicked";
         break;
       }
-
+        case "Enter":
+            case "Tab":
+            case "ArrowUp":
+            case "ArrowDown":
+            case "ArrowLeft":
+            case "ArrowRight":
+            case "Escape": {
+              try {
+                await webext.runtime.sendMessage({ 
+                  command: "trustedKeyEvent", 
+                  key: action.type 
+                });
+                actionSuccess = true;
+                resMessage = `✅ Simulated ${action.type} key via debugger`;
+              } catch (err) {
+                console.error(`❌ ${action.type} key simulation failed:`, err);
+                actionSuccess = false;
+                resMessage = err.message || `Failed to simulate ${action.type}`;
+              }
+              break;
+            }
       case "change": {
         element.focus();
 
