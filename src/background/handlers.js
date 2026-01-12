@@ -393,6 +393,8 @@ export function setupMessageListeners() {
                   {
                     ...rest,
                     status,
+                    run_by:"local",
+                    latest_run_time: new Date().toISOString(),
                     fail_screenShot,
                   },
                   { onConflict: ["test_case"] }
@@ -413,6 +415,7 @@ export function setupMessageListeners() {
                   project_id: projectId,
                   test_case_id: test_case,
                   test_result_id: id,
+                  run_by:"local",
                   module_id: moduleId,
                   name,
                   status,
