@@ -38,10 +38,7 @@ import { generateXPaths } from './xpath.js';
   (document.head || document.documentElement).appendChild(script);
 
   // Keep alive connection
-  const port = webext.runtime.connect({ name: 'keepAlive' });
-  setInterval(() => {
-    port.postMessage({ ping: Date.now() });
-  }, 10000);
+   
 
   // UI setup
   setupUI();

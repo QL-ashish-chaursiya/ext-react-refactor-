@@ -516,9 +516,9 @@ export function setupMessageListeners() {
             return { status: "recorded" };
           }
           // Query whether the sender tab is the active playback tab
-          case "IS_ACTIVE_PLAYBACK_TAB": {
+    case "IS_ACTIVE_PLAYBACK_TAB": {
   try {
-    const playbackWindowId = getState().playbackWindowId;
+    const { playbackWindowId } =  getState();
     const senderTabId = sender?.tab?.id;
 
     if (!playbackWindowId || !senderTabId) {
@@ -528,17 +528,36 @@ export function setupMessageListeners() {
       };
     }
 
-    // 🔍 Ask browser which tab is ACTUALLY active
-    const [activeTab] = await webext.tabs.query({
-      active: true,
-      windowId: playbackWindowId,
-    });
+    const checkIsActive = async () => {
+      const [activeTab] = await webext.tabs.query({
+        active: true,
+        windowId: playbackWindowId,
+      });
 
-    const isActive = activeTab?.id === senderTabId;
+      return {
+        isActive: activeTab?.id === senderTabId,
+        activeTabId: activeTab?.id ?? null,
+      };
+    };
+
+    // ---- FIRST CHECK ----
+    let result = await checkIsActive();
+
+    // ---- ONLY WAIT & RETRY IF SINGLE TAB ----
+    if (!result.isActive) {
+       await new Promise((r) => setTimeout(r, 700));
+      const tabsInWindow = await webext.tabs.query({
+        windowId: playbackWindowId,
+      });
+
+      if (tabsInWindow.length === 1) {
+        await new Promise((r) => setTimeout(r, 2000));
+        result = await checkIsActive();
+      }
+    }
 
     return {
-      isActive,
-      activeTabId: activeTab?.id ?? null,
+      ...result,
       playbackWindowId,
     };
   } catch (err) {
@@ -549,6 +568,8 @@ export function setupMessageListeners() {
     };
   }
 }
+
+
 
 
           // ----------------------------

@@ -74,16 +74,6 @@ webext.downloads.onChanged.addListener((delta) => {
   }
 });
 
-webext.runtime.onConnect.addListener((port) => {
-  if (port.name === 'keepAlive') {
-    setState({ activePort: port });
-    port.onDisconnect.addListener(() => {
-      console.log('Port disconnected:', webext.runtime.lastError);
-      setState({ activePort: null });
-    });
-  }
-});
-
 // Only add debugger listener if supported
 if (supportsDebugger) {
   webext.debugger.onDetach.addListener((source, reason) => {
@@ -301,6 +291,27 @@ const  tabOrder = await utils.getCurrentActiveTabOrder();
     }
   }
 });
+
+ async function createOffscreen() {
+  if (await chrome.offscreen.hasDocument()) return;
+  await chrome.offscreen.createDocument({
+    url: 'offscreen.html',
+    reasons: ['BLOBS'], // Using 'BLOBS' as a valid reason
+    justification: 'keep service worker running',
+  });
+}
+
+// 2. Listen for the "keepAlive" message
+self.onmessage = e => {
+  if (e.data === 'keepAlive') {
+    console.log("Service worker kept alive");
+  }
+};
+
+// 3. Run on start
+chrome.runtime.onInstalled.addListener(createOffscreen);
+chrome.runtime.onStartup.addListener(createOffscreen);
+createOffscreen(); 
 
 // Export webext object for use in other files
 export { webext, supportsDebugger };

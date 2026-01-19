@@ -27,6 +27,8 @@ const copyPlugin = copy({
     { src: '_locales/**/*', dest: 'dist/_locales' },
     { src: 'src/common/alert-override.js', dest: 'dist' }, // Explicitly copy alert-override.js
     { src: 'src/common/network.js', dest: 'dist' }, // Explicitly copy network.js
+    { src: 'src/offscreen/offscreen.html', dest: 'dist' } ,
+     { src: 'src/offscreen/offscreen.js', dest: 'dist' },
   ],
 });
 

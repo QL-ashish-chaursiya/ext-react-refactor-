@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Evertest Recorder",
-  "version": "3.4.4",
+  "version": "3.5.4",
   "description": "Automates web testing by recording and replaying interactions, offering an effortless tool. Learn more at https://evertest.co",
   "default_locale": "en",
   "icons": {
@@ -27,7 +27,8 @@
     "debugger",
     "windows",
     "webNavigation",
-    "downloads"
+    "downloads",
+    "offscreen"
   ],
   "externally_connectable": {
     "matches": [
@@ -48,7 +49,9 @@
     {
       "resources": [
         "alert-override.js",
-        "network.js"
+        "network.js",
+        "offscreen.html",
+         "offscreen.js"
       ],
       "matches": ["<all_urls>"]
     }
@@ -57,11 +60,7 @@
   "incognito": "spanning",
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self';"
-  },
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "evertest@evertest.co",
-      "strict_min_version": "109.0"
-    }
   }
+  
+  
 }
