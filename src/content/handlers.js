@@ -3,6 +3,7 @@ import { getElementInfo, generateXPaths } from "./xpath.js";
 import { getState, setState } from "./content-states.js";
 import { IMPORTANT_KEYS } from "../utils/constant.js";
 import webext from 'webextension-polyfill';
+import { encryptPassword, isPasswordField } from "../utils/helper.js";
 
 let lastRecordedScrollY = 0;
 export let pendingInputAction = null;
@@ -270,9 +271,6 @@ export function getIframeElementForClickedNode(clickedElement) {
 export async function sendAction(action) {
   const state = await getState();
   if (!state.recording) return;
-  
-   
-  
   if (!isRuntimeAvailable()) return;
   console.log("action 1", action);
   webext.runtime
@@ -511,10 +509,12 @@ const inputKey = getInputKey(target);
 
   // ✅ NEW: Store in Map instead of overwriting
   const inputKey = getInputKey(target);
+  const isPassword = isPasswordField(target)
   const action = {
     type: "change",
     element: elementInfo,
     value,
+    isPassword,
     description: `Enter "${value}" in ${elementInfo.name || elementInfo.id || elementInfo.tagName.toLowerCase()}`,
   };
 

@@ -645,7 +645,8 @@ export function setupMessageListeners() {
           actions: actions.actions,
           allResults: [],
           currentStep: 0,
-          wait
+          wait,
+          userId:message.userId
         });
 
         const newWindow = await webext.windows.create({

@@ -1,5 +1,6 @@
 import { setState } from "../content/content-states";
  import webext from 'webextension-polyfill';
+import { ITERATIONS, KEY_LENGTH, SALT } from "./constant";
 export async function injectScript(file) {
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
@@ -230,6 +231,87 @@ function isNearBottom(startY, endY) {
     image.src = dataUrl;
   });
 }
+export function isPasswordField(el) {
+  if (!el) return false;
+
+  return (
+    el.tagName === "INPUT" &&
+    (
+      el.type === "password" ||
+      el.autocomplete === "current-password" ||
+      el.autocomplete === "new-password"
+    )
+  );
+}
+export async function getCryptoKey(userId) {
+  if (!userId) {
+    throw new Error("userId is required to derive crypto key");
+  }
+
+  // Step 1: Import userId as base key material
+  const baseKey = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(userId),
+    "PBKDF2",
+    false,
+    ["deriveKey"]
+  );
+
+  // Step 2: Derive AES-GCM key
+  return crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: new TextEncoder().encode(SALT),
+      iterations: ITERATIONS,
+      hash: "SHA-256",
+    },
+    baseKey,
+    {
+      name: "AES-GCM",
+      length: KEY_LENGTH,
+    },
+    false, // non-extractable (more secure)
+    ["encrypt", "decrypt"]
+  );
+}
+
+ 
+export async function encryptPassword(password, userId) {
+  if (!password) return null;
+
+  const key = await getCryptoKey(userId);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+
+  const cipherBuffer = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    new TextEncoder().encode(password)
+  );
+
+  return {
+    cipher: btoa(String.fromCharCode(...new Uint8Array(cipherBuffer))),
+    iv: btoa(String.fromCharCode(...iv)),
+  };
+}
+
+ 
+export async function decryptPassword({ cipher, iv }, userId) {
+  if (!cipher || !iv) return "";
+
+  const key = await getCryptoKey(userId);
+
+  const decrypted = await crypto.subtle.decrypt(
+    {
+      name: "AES-GCM",
+      iv: Uint8Array.from(atob(iv), (c) => c.charCodeAt(0)),
+    },
+    key,
+    Uint8Array.from(atob(cipher), (c) => c.charCodeAt(0))
+  );
+
+  return new TextDecoder().decode(decrypted);
+}
+
 
  
    

@@ -4,34 +4,58 @@ import { supabaseClient } from './supabase.js';
 import { getState, initialState, setState, state } from './states.js';
 import { NAVIGATE_TYPES } from '../utils/constant.js';
 import { getCurrentActiveTabOrder } from './utils.js';
+import { encryptPassword } from '../utils/helper.js';
 
-export async function stopRecording() {
+ export async function stopRecording() {
+  const state =  getState();
+ const userId = state.testCasePayload?.user_id
+  if (!state.recordingWindowId) return;
+
   
-  if (getState().recordingWindowId) {
-      
-    let payload =  {
-      ...getState().testCasePayload,
-      actions: getState().recordedActions
-    }
-    try {
-      
-      const { data, error } = await supabaseClient.from('test_cases').insert(payload).select();
-      
-      if (error) console.log('error', error);
-    } catch (e) {
-      console.error('Failed to save test case:', e);
-    }
+  const updatedActions = await Promise.all(
+    (state.recordedActions || []).map(async (act) => {
+      if (act.isPassword && act.type === 'change') {
+        const passKey = await encryptPassword(act.value || '',userId);
 
-    try {
-      await  webext.windows.remove(getState().recordingWindowId);
-     setState(initialState)
-    } catch (e) {
-      console.warn('Window already closed or failed:', e);
-    }
+        return {
+          ...act,
+          passKey,
+          value: '*****',
+          element: {
+            ...act.element,
+            value: '*****'
+          },
+          description:"Enter ***** in Password"
+        };
+      }
 
-    
+      return act;
+    })
+  );
+
+  const payload = {
+    ...state.testCasePayload,
+    actions: updatedActions
+  };
+
+  try {
+    const { error } = await supabaseClient
+      .from('test_cases')
+      .insert(payload);
+
+    if (error) console.error('error', error);
+  } catch (e) {
+    console.error('Failed to save test case:', e);
+  }
+
+  try {
+    await webext.windows.remove(state.recordingWindowId);
+     setState(initialState);
+  } catch (e) {
+    console.warn('Window already closed or failed:', e);
   }
 }
+
 
 export async function recordAction(action) {
   const { recording } = getState();

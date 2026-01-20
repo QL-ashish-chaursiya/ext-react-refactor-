@@ -41,3 +41,6 @@ export const nonTextKeys = [
   "ArrowRight",
 ];
 export const IS_CUSTOM = ['randomName','randomNumber','randomAlphaNumeric','randomEmail']
+export const SALT = "evertest-password-salt-v1";
+export const ITERATIONS = 100_000;
+export const KEY_LENGTH = 256;

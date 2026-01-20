@@ -17,7 +17,7 @@ import {
   locateIframeByXPath,
 } from "./utils.js";
 import { runAssertions } from "./assertions.js";
-import { captureAndUpload, compare, cropImage, sendMessagePromise } from "../utils/helper.js";
+import { captureAndUpload, compare, cropImage, decryptPassword, sendMessagePromise } from "../utils/helper.js";
 
 export async function runAutomation() {
   let preSavedActions = new Set();
@@ -28,7 +28,7 @@ export async function runAutomation() {
     currentStep = 0,
     allResults = [],
     tabOrder = 1,
-    wait
+    wait,
   } = await webext.storage.local.get([
     "actions",
     "currentStep",
@@ -591,8 +591,12 @@ async function performAction(action, arr, index) {
       
       case "change": {
         element.focus();
-        const finalValue = action?.variable?.name ? resolveVariableValue(action?.variable) : action.value;
-        
+        let finalValue = action?.variable?.name ? resolveVariableValue(action?.variable) : action.value;
+        if(action.isPassword){
+      let {userId} = await webext.storage.local.get(["userId"]);
+          const password = await decryptPassword(action.passKey,userId);
+           finalValue = password;
+        }
         if (element.isContentEditable) {
           element.innerHTML = "";
           await delay(100);
