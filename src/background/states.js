@@ -1,6 +1,7 @@
 // background/store.js
 export const state = {
     recording: true,
+    env:'production',
     openTabsData:{},
     tabOrder: null,
     recordedActions: [],
@@ -27,6 +28,7 @@ export const state = {
   export const initialState  = {
     recording: true,
     tabOrder: null,
+    env:'production',
      openTabsData:{},
     recordedActions: [],
     playbackArr: [],

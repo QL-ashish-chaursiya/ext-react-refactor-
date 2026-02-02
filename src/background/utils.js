@@ -1,8 +1,9 @@
 // utils.js (FULLY UPDATED)
 // --------------------------------------------------------
 
+import { createClient } from "@supabase/supabase-js";
+import { ENVIRONMENTS } from "../utils/constant.js";
 import { getState, setState } from "./states.js";
-import { supabaseClient } from "./supabase.js";
 import webext from "webextension-polyfill";
 export function isInjectableUrl(url) {
   if (!url) return false;
@@ -109,8 +110,8 @@ export async function captureAndUploadScreenshot() {
 
     const imageBlob = b64toBlob(base64Data, "image/png");
     const imageName = `screenshot_${Date.now()}.png`;
-
-    const { error: uploadError } = await supabaseClient.storage
+       const spClient = getSupaBaseClient()
+    const { error: uploadError } = await  spClient.storage
       .from("screenshots")
       .upload(imageName, imageBlob, { cacheControl: "3600", upsert: false });
 
@@ -119,7 +120,7 @@ export async function captureAndUploadScreenshot() {
       return null;
     }
 
-    const { data } = supabaseClient.storage
+    const { data } =  spClient.storage
       .from("screenshots")
       .getPublicUrl(imageName);
 
@@ -332,4 +333,11 @@ export async function isValidUserTab(tabId) {
     // tab may be closing or inaccessible
     return false;
   }
+}
+export function getSupaBaseClient(){
+  const state = getState();
+  const finalEnv =  state.env || 'production'
+   const {supabaseUrl,supabaseAnonKey} = ENVIRONMENTS[finalEnv];
+   const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+   return supabaseClient
 }

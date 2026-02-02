@@ -1,9 +1,8 @@
 //background.recording.js
   import webext from 'webextension-polyfill';
-import { supabaseClient } from './supabase.js';
 import { getState, initialState, setState, state } from './states.js';
 import { NAVIGATE_TYPES } from '../utils/constant.js';
-import { getCurrentActiveTabOrder } from './utils.js';
+import { getCurrentActiveTabOrder, getSupaBaseClient } from './utils.js';
 import { encryptPassword } from '../utils/helper.js';
 
  export async function stopRecording() {
@@ -37,9 +36,9 @@ import { encryptPassword } from '../utils/helper.js';
     ...state.testCasePayload,
     actions: updatedActions
   };
-
+const spClient = getSupaBaseClient()
   try {
-    const { error } = await supabaseClient
+    const { error } = await  spClient
       .from('test_cases')
       .insert(payload);
 

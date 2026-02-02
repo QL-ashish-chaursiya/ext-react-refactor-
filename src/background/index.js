@@ -3,7 +3,6 @@
 import webext from 'webextension-polyfill';
 
 import { showOverlay, hideOverlay } from './injections.js';
-import { supabaseClient } from './supabase.js';
 import * as utils from './utils.js';
 import { setupMessageListeners } from './handlers.js';
 import { stopRecording, recordAction } from './recording.js';

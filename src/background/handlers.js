@@ -1,12 +1,12 @@
 // background.handler.js
 import  webext from "webextension-polyfill";
-import { supabaseClient } from "./supabase.js";
 import {
   captureAndUploadScreenshot,
   setActiveTab,
   attachDebuggerToTab,
   dataURLtoBlob,
   captureTab,
+  getSupaBaseClient,
 } from "./utils.js";
 import { stopRecording, recordAction } from "./recording.js";
 import { getState, initialState, setState } from "./states.js";
@@ -387,7 +387,8 @@ export function setupMessageListeners() {
 
               // Upsert into supabase
               const { projectId, moduleId, ...rest } = state.saveTestResult || {};
-              const { data, error: upsertError } = await supabaseClient
+              const spClient = getSupaBaseClient()
+              const { data, error: upsertError } = await  spClient
                 .from("test_results")
                 .upsert(
                   {
@@ -422,7 +423,7 @@ export function setupMessageListeners() {
                   fail_screenshot: fail_screenShot,
                   result,
                 };
-                const { data: runData, error } = await supabaseClient
+                const { data: runData, error } = await  spClient
                   .from("run_history")
                   .insert(newHistoryEntry)
                   .select();
@@ -480,8 +481,8 @@ export function setupMessageListeners() {
               const { cropped, rect, isAction } = message;
               const fileName = `capture_${Date.now()}.png`;
               const blob = dataURLtoBlob(cropped);
-
-              const { data, error } = await supabaseClient.storage
+             const spClient = getSupaBaseClient()
+              const { data, error } = await  spClient.storage
                 .from("screenshots")
                 .upload(fileName, blob, { contentType: "image/png" });
 
@@ -490,7 +491,7 @@ export function setupMessageListeners() {
                 return { success: false, error: error.message || String(error) };
               }
 
-              const publicUrl = supabaseClient.storage.from("screenshots").getPublicUrl(fileName).data.publicUrl;
+              const publicUrl =  spClient.storage.from("screenshots").getPublicUrl(fileName).data.publicUrl;
 
               const savedObj = {
                 type: "compareImage",
@@ -600,6 +601,7 @@ export function setupMessageListeners() {
           recordedActions: [],
           recording: true,
           testCasePayload: message.data,
+          env:message.env
         });
 
         // destructure safely to avoid overriding imported `webext`
@@ -631,6 +633,7 @@ export function setupMessageListeners() {
 
          setState({
           tabOrder: 1,
+           env:message.env,
           playbackArr: actions.actions,
           saveTestResult: {
             user_id: message.userId,
