@@ -592,20 +592,22 @@ export function setupMessageListeners() {
   });
 
   // External message listener (e.g. native or other extension)
-  webext.runtime.onMessageExternal.addListener(async (message, sender, sendResponse) => {
+  webext.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  (async () => {
     try {
       if (message.type === "start-recording") {
         const { url } = message.data;
-         setState({
+
+        setState({
           tabOrder: 1,
           recordedActions: [],
           recording: true,
           testCasePayload: message.data,
-          env:message.env
+          env: message.env,
         });
 
-        // destructure safely to avoid overriding imported `webext`
-        const {  browser: customBrowserSettings } = message.settings || {};
+        const { browser: customBrowserSettings } = message.settings || {};
+
         const recordingWindow = await webext.windows.create({
           url,
           type: "normal",
@@ -614,26 +616,31 @@ export function setupMessageListeners() {
           incognito: customBrowserSettings?.incognito || false,
         });
 
-        // ensure tabs exist
-        const firstTab = recordingWindow.tabs && recordingWindow.tabs[0];
+        const firstTab = recordingWindow?.tabs?.[0];
+
+        if (firstTab?.id != null) {
           getState().recordingTabIds.add(firstTab.id);
- getState().openTabsData[firstTab.id] = { id: firstTab.id, index: firstTab.index };
-              setState({recordingWindowId:recordingWindow.id})
+          getState().openTabsData[firstTab.id] = {
+            id: firstTab.id,
+            index: firstTab.index,
+          };
+        }
 
-         
+        setState({ recordingWindowId: recordingWindow.id });
 
-        // send response
-        return { success: true };
-        
-        
-      } else if (message.type === "runTest") {
+        sendResponse({ success: true });
+      }
+
+      else if (message.type === "runTest") {
         const actions = message.data;
         const testUrl = actions.url;
-        const {  browser: customBrowserSettings,wait } = message.projectSetting || {};
 
-         setState({
+        const { browser: customBrowserSettings, wait } =
+          message.projectSetting || {};
+
+        setState({
           tabOrder: 1,
-           env:message.env,
+          env: message.env,
           playbackArr: actions.actions,
           saveTestResult: {
             user_id: message.userId,
@@ -649,7 +656,7 @@ export function setupMessageListeners() {
           allResults: [],
           currentStep: 0,
           wait,
-          userId:message.userId
+          userId: message.userId,
         });
 
         const newWindow = await webext.windows.create({
@@ -660,40 +667,55 @@ export function setupMessageListeners() {
           incognito: customBrowserSettings?.incognito || false,
         });
 
-         setState({
-          currentPlayTab: newWindow.tabs && newWindow.tabs[0] ? newWindow.tabs[0].id : null,
+        const firstTab = newWindow?.tabs?.[0];
+
+        setState({
+          currentPlayTab: firstTab?.id ?? null,
           playbackWindowId: newWindow.id,
         });
 
-        return  { success: true }
-        
-      } else if (message.type === "check-incognito-mode") {
+        sendResponse({ success: true });
+      }
+
+      else if (message.type === "check-incognito-mode") {
         try {
           const res = await webext.extension.isAllowedIncognitoAccess();
-           
+          console.log("incognito allowed:", res);
 
           if (!res) {
             setTimeout(() => {
-              // NOTE: opening a chrome:// or webext:// page may fail in some browsers. Adjust id/url per-store.
               webext.tabs.create({
-                url: "chrome://extensions/?id=" + (webext.runtime.id || ""),
+                url: `chrome://extensions/?id=${webext.runtime.id}`,
               }).catch(() => {});
             }, 1000);
           }
 
-          return { success: res };
+          sendResponse({ success: res });
         } catch (err) {
-         
-          return { success: false, error: err?.message ?? String(err) };
+          sendResponse({
+            success: false,
+            error: err?.message ?? String(err),
+          });
         }
-      } else {
-        sendResponse({ success: false, error: "Unknown external message type" });
-        return true;
       }
+
+      else {
+        sendResponse({
+          success: false,
+          error: "Unknown external message type",
+        });
+      }
+
     } catch (error) {
       console.error("External message handler error:", error);
-      sendResponse({ success: false, error: error?.message ?? String(error) });
-      
+
+      sendResponse({
+        success: false,
+        error: error?.message ?? String(error),
+      });
     }
-  });
+  })();
+
+  return true; // ✅ keeps message channel open
+});
 }
