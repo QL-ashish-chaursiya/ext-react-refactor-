@@ -723,5 +723,57 @@ export function resolveVariableValue(variable) {
   // 🧾 Custom variable (use stored value)
   return value || "";
 }
+export function waitForNetworkIdle(maxWait = 15000) {
+  return new Promise((resolve) => {
+    const requestId = Date.now() + Math.random();
+    let resolved = false;
 
+    function finish(result) {
+      if (resolved) return;
+      resolved = true;
+      window.removeEventListener('message', messageHandler);
+      clearTimeout(timeoutId);
+      resolve(result);
+    }
+
+    function messageHandler(event) {
+      if (event.source !== window) return;
+
+      // Early-exit path: a non-2xx API was detected mid-flight
+      if (
+        event.data?.type === 'NETWORK_API_FAILED' &&
+        event.data?.source === 'network-monitor'
+      ) {
+        console.warn('[playback] API failure detected early:', event.data.data);
+        finish(event.data.data); // { status: false, url, message, statusCode }
+        return;
+      }
+
+      // Normal idle-resolved path
+      if (
+        event.data?.type === 'NETWORK_IDLE_RESOLVED' &&
+        event.data?.source === 'network-monitor' &&
+        event.data?.requestId === requestId
+      ) {
+        console.log('[playback] Network idle resolved');
+        finish(event.data.data); // { status: true|false, url, message, statusCode }
+      }
+    }
+
+    window.addEventListener('message', messageHandler);
+
+    window.postMessage({
+      type: 'WAIT_FOR_NETWORK_IDLE',
+      requestId,
+      debounce: 1000,
+      timeout: maxWait,
+    }, '*');
+
+    // Hard fallback — treat as success so playback can continue on timeout
+    const timeoutId = setTimeout(() => {
+      console.warn('[playback] waitForNetworkIdle: timeout reached, continuing');
+      finish({ status: true, url: null, message: 'Network idle timeout — continuing', statusCode: null });
+    }, maxWait + 1000);
+  });
+}
   
