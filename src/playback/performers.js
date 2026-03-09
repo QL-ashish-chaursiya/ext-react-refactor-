@@ -227,7 +227,7 @@ export async function runAutomation() {
         results[results.length - 1] = {
           ...results[results.length - 1],
           status: "fail",
-          message: `API failure: ${networkResult.message} (URL: ${networkResult.url}, Status: ${networkResult.statusCode ?? 'N/A'})`,
+          message: `API failure: ${networkResult.message}`,
         };
         await webext.storage.local.set({ allResults: results });
         break; // stop the loop entirely
@@ -335,7 +335,7 @@ async function performAction(action, arr, index) {
   if (!preNetworkResult.status) {
     return {
       success: false,
-      message: `API failure before action: ${preNetworkResult.message} (URL: ${preNetworkResult.url}, Status: ${preNetworkResult.statusCode ?? 'N/A'})`,
+      message: `API failure before action: ${preNetworkResult.message}`,
       assertions: [],
     };
   }
@@ -478,7 +478,7 @@ async function performAction(action, arr, index) {
         if (!mousedownNetworkResult.status) {
           return {
             success: false,
-            message: `API failure before mousedown: ${mousedownNetworkResult.message} (URL: ${mousedownNetworkResult.url}, Status: ${mousedownNetworkResult.statusCode ?? 'N/A'})`,
+            message: `API failure before mousedown: ${mousedownNetworkResult.message}`,
             assertions: [],
           };
         }

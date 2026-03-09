@@ -1,4 +1,4 @@
-(function () {
+ (function () {
   if (window.__networkInterceptorInstalled__) {
     console.log('🔄 Network interceptor already installed');
     return;
@@ -13,7 +13,6 @@
   let lastNetworkState = 'idle';
   let isMonitoringStatus = false;
 
-  // Tracks the first failed API call detected during monitoring
   let detectedFailure = null;
 
   const IGNORED_URL_PATTERNS = [
@@ -57,7 +56,7 @@
     /telemetry/i,
     /\.net/i,
     /session/i,
-     /public/i,
+    /public/i,
     /hubspot/i
   ];
 
@@ -68,7 +67,7 @@
 
       if (event.data.type === 'REQUEST_NETWORK_STATUS') {
         isMonitoringStatus = true;
-        detectedFailure = null; // reset on every new check
+        detectedFailure = null;
 
         window.postMessage({
           type: 'NETWORK_STATUS_RESPONSE',
@@ -83,7 +82,7 @@
 
       if (event.data.type === 'WAIT_FOR_NETWORK_IDLE') {
         isMonitoringStatus = true;
-        detectedFailure = null; // reset on every new wait
+        detectedFailure = null;
 
         waitForMeaningfulNetworkIdle({
           debounce: event.data.debounce || 1000,
@@ -91,14 +90,17 @@
         }).then(() => {
           isMonitoringStatus = false;
 
-          // Structured response: failure info OR success
+          // ✅ Success: message is a JSON string
           const response = detectedFailure
             ? detectedFailure
             : {
                 status: true,
-                url: null,
-                message: 'Network idle — all requests succeeded',
-                statusCode: null,
+                message: JSON.stringify({
+                  url: null,
+                  statusCode: null,
+                  apiResponse: null,
+                  error: null,
+                }),
               };
 
           window.postMessage({
@@ -125,40 +127,58 @@
   }
 
   /**
-   * Called after every meaningful request settles.
-   * - Logs the result to console while monitoring is active.
-   * - On first non-2xx/error, stores failure and fires NETWORK_API_FAILED
-   *   so playback.performer.js can stop immediately without waiting for idle.
+   * Safely parse the response body — tries JSON first, falls back to plain text.
    */
-  function handleRequestResult(url, statusCode, errorType) {
+  async function safeParseBody(response) {
+    try {
+      const cloned = response.clone();
+      const text = await cloned.text();
+      if (!text) return null;
+      try {
+        return JSON.parse(text);
+      } catch {
+        return text;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Called after every meaningful request settles.
+   * ✅ message is always a JSON string: { url, statusCode, apiResponse, error }
+   */
+  function handleRequestResult(url, statusCode, errorType, apiResponse = null) {
     if (!isMonitoringStatus) return;
 
     const failed = errorType !== null || !is2xx(statusCode);
 
-    let message;
-    if (errorType === 'network-error') {
-      message = `Network error — request failed to reach server`;
-    } else if (errorType === 'aborted') {
-      message = `Request was aborted`;
-    } else if (errorType === 'timeout') {
-      message = `Request timed out`;
-    } else if (failed) {
-      message = `API responded with failure status ${statusCode}`;
-    } else {
-      message = `Request succeeded`;
-    }
+    // ✅ message is a JSON string — ready to display directly on UI
+    const message = JSON.stringify({
+      url,
+      statusCode: errorType ? null : statusCode,
+      apiResponse,
+      error: errorType ?? null,
+    });
 
-    console.log(`[API] ${url} | statusCode: ${errorType ?? statusCode} | ${message}`);
+    console.log(`[API] ${url} | statusCode: ${errorType ?? statusCode} | failed: ${failed}`, apiResponse);
+
+    // Broadcast every settled request
+    window.postMessage({
+      type: 'NETWORK_REQUEST_SETTLED',
+      source: 'network-monitor',
+      data: {
+        status: !failed,
+        message,
+      },
+    }, '*');
 
     if (failed && !detectedFailure) {
       detectedFailure = {
         status: false,
-        url,
-        message,
-        statusCode: errorType ? null : statusCode,
+        message, // ✅ JSON string
       };
 
-      // Immediately surface the failure to playback — don't wait for idle
       window.postMessage({
         type: 'NETWORK_API_FAILED',
         source: 'network-monitor',
@@ -200,7 +220,7 @@
     }, debounceMs);
   }
 
-  // ─── Patch fetch ─────────────────────────────────────────────────────────────
+  // ─── Patch fetch ──────────────────────────────────────────────────────────
   const originalFetch = window.fetch;
   window.fetch = async function (...args) {
     const url = (args[0] && args[0].url) || args[0];
@@ -213,10 +233,15 @@
 
     try {
       const response = await originalFetch.apply(this, args);
-      if (track) handleRequestResult(url, response.status, null);
+
+      if (track) {
+        const apiResponse = await safeParseBody(response);
+        handleRequestResult(url, response.status, null, apiResponse);
+      }
+
       return response;
     } catch (err) {
-      if (track) handleRequestResult(url, null, 'network-error');
+      if (track) handleRequestResult(url, null, 'network-error', null);
       throw err;
     } finally {
       if (track) {
@@ -245,7 +270,19 @@
       const finalize = (errorType) => {
         if (this._completed) return;
         this._completed = true;
-        handleRequestResult(this._url, this.status || null, errorType);
+
+        let apiResponse = null;
+        try {
+          if (this.responseText) {
+            try {
+              apiResponse = JSON.parse(this.responseText);
+            } catch {
+              apiResponse = this.responseText;
+            }
+          }
+        } catch {}
+
+        handleRequestResult(this._url, this.status || null, errorType, apiResponse);
         activeRequests = Math.max(0, activeRequests - 1);
         maybeLogStatus();
         if (activeRequests === 0) scheduleIdleCheck();
