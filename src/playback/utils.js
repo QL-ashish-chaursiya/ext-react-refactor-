@@ -245,7 +245,22 @@ export function delay(ms) {
     console.log("other edge case point is not clickable")
     // 4. Final fallback: try direct element.click()
     try {
-      el.click();
+      // Simple click via MouseEvent
+const event = new MouseEvent('click', {
+  bubbles: true,
+  cancelable: true,
+  view: window
+});
+el.dispatchEvent(event);
+
+// Full mouse interaction (mousedown → mouseup → click)
+['mousedown', 'mouseup', 'click'].forEach(type => {
+  el.dispatchEvent(new MouseEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    view: window
+  }));
+});
       return { success: true, x: null, y: null, reason: "Fallback: direct element.click() used" };
     } catch (err) {
       return { success: false, reason: `No clickable point found, and el.click() failed: ${err.message}` };

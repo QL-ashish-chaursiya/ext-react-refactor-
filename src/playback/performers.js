@@ -484,16 +484,10 @@ async function performAction(action, arr, index) {
         }
         updateStatus("🚀 Running test playback...");
 
-        const clickResult = await ensureClickable(action.element?.xpath, 10000);
-        if (clickResult.success) {
+        
+        
           const el = await waitForElementByXPath(action.element?.xpath, 1000);
-          const coverCheck = isElementCovered(el, { x: action.offsetX, y: action.offsetY });
-
-          if (coverCheck.covered) {
-            console.log(`⚠️ Element covered: ${coverCheck.reason}`);
-            updateStatus("⏳ Waiting for overlay to clear...");
-            await waitForElementUncovered(el, 10000, { x: action.offsetX, y: action.offsetY });
-          }
+          
 
           const result = await getClickablePoint(el, action.offsetX, action.offsetY);
 
@@ -511,10 +505,7 @@ async function performAction(action, arr, index) {
             actionSuccess = false;
             resMessage = result.reason || "Failed to click";
           }
-        } else {
-          actionSuccess = false;
-          resMessage = clickResult.message;
-        }
+         
         break;
       }
 
