@@ -58,6 +58,7 @@
     /session/i,
     /public/i,
     /hubspot/i
+    /static/i
   ];
 
   // ─── Communication ──────────────────────────────────────────────────────────
