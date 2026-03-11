@@ -57,7 +57,7 @@
     /\.net/i,
     /session/i,
     /public/i,
-    /hubspot/i
+    /hubspot/i,
     /static/i
   ];
 

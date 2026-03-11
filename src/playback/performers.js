@@ -328,6 +328,22 @@ async function performAction(action, arr, index) {
     pointer.style.top = `${window.scrollY + y}px`;
     pointer.style.left = `${window.scrollX + x}px`;
   }
+  function scrollIfNeeded(element) {
+  const rect = element.getBoundingClientRect();
+
+  const isVisible =
+    rect.top >= 0 &&
+    rect.left >= 0 &&
+    rect.bottom <= window.innerHeight &&
+    rect.right <= window.innerWidth;
+
+  if (!isVisible) {
+    element.scrollIntoView({
+      block: "center",
+      behavior: "auto"
+    });
+  }
+}
 
   // Wait for idle before starting the action, and check for failures here too
   updateStatus("⏳ Waiting for Network...");
@@ -352,7 +368,8 @@ async function performAction(action, arr, index) {
       };
     }
     element = locatedElement;
-    element.scrollIntoView({ behavior: "auto", block: "center" });
+    
+    scrollIfNeeded(element)
 
     if (action.type === 'dragstart' || action.type === 'dragend') {
       movePointerDrag(action.clientX || element.getBoundingClientRect().left, action.clientY || element.getBoundingClientRect().top);
